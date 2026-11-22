@@ -1,0 +1,232 @@
+<UserControl x:Class="Tweaker.Views.NetworkView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Tweaker.Controls"
+             xmlns:conv="clr-namespace:Tweaker.Converters">
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
+        <Style x:Key="NetCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource BgCard}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderCard}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style x:Key="PingHead" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="Foreground" Value="{StaticResource TextDim}" />
+            <Setter Property="Margin" Value="12,0,0,2" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+        </Style>
+        <Style x:Key="PingLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style x:Key="PingValue" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource TextName}" />
+            <Setter Property="Margin" Value="12,2,0,2" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer x:Name="Page" Style="{StaticResource ThemedScroll}" Padding="18,16">
+    <Grid Height="{Binding ViewportHeight, ElementName=Page}" MinHeight="520">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="120" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="1.1*" />
+            </Grid.ColumnDefinitions>
+            <controls:MetricCard Grid.Column="0" Label="DOWNLOAD" Unit="Mbps" SeriesBrush="{StaticResource SeriesCpu}"
+                                 Value="{Binding Download.ValueText}" Sub="{Binding Download.SubText}" History="{Binding Download.History}"
+                                 Maximum="{Binding Download.Maximum}" Fraction="{Binding Download.Fraction}" />
+            <controls:MetricCard Grid.Column="2" Label="UPLOAD" Unit="Mbps" SeriesBrush="{StaticResource SeriesNet}"
+                                 Value="{Binding Upload.ValueText}" Sub="{Binding Upload.SubText}" History="{Binding Upload.History}"
+                                 Maximum="{Binding Upload.Maximum}" Fraction="{Binding Upload.Fraction}" />
+            <Border Grid.Column="4" Style="{StaticResource NetCard}" Padding="14,10">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,6">
+                        <Button DockPanel.Dock="Right" Content="{Binding PingButtonLabel}" Command="{Binding RunPingCommand}"
+                                Style="{StaticResource AccentButtonSm}" />
+                        <TextBlock Text="LATENCY TEST" Style="{StaticResource Label10}" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="ping" Style="{StaticResource PingHead}" />
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="jitter" Style="{StaticResource PingHead}" />
+                        <TextBlock Grid.Row="0" Grid.Column="3" Text="loss" Style="{StaticResource PingHead}" />
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Internet (1.1.1.1)" Style="{StaticResource PingLabel}" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding InternetLatency}" Style="{StaticResource PingValue}" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding InternetJitter}" Style="{StaticResource PingValue}" />
+                        <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding InternetLoss}" Style="{StaticResource PingValue}" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Gateway" Style="{StaticResource PingLabel}" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding GatewayLatency}" Style="{StaticResource PingValue}" />
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding GatewayJitter}" Style="{StaticResource PingValue}" />
+                        <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding GatewayLoss}" Style="{StaticResource PingValue}" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,16">
+            <TextBlock Text="ADAPTERS" Style="{StaticResource Label10}" Margin="0,0,0,8" />
+            <Border Style="{StaticResource NetCard}">
+                <ScrollViewer Style="{StaticResource ThemedScroll}" MaxHeight="152">
+                <Grid ClipToBounds="True">
+                    <ItemsControl ItemsSource="{Binding Adapters}" Margin="0,0,0,-1">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{StaticResource RowDivider}" BorderThickness="0,0,0,1" Padding="13,9">
+                                    <DockPanel>
+                                        <controls:Badge x:Name="StatusBadge" DockPanel.Dock="Right" Text="{Binding Status}" Tone="Neutral"
+                                                        VerticalAlignment="Center" />
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding Speed}" FontSize="11" Foreground="{StaticResource TextMuted}"
+                                                   Margin="12,0" VerticalAlignment="Center" />
+                                        <Ellipse x:Name="Dot" Width="6" Height="6" Fill="{StaticResource StatusDotOff}" Margin="0,0,12,0"
+                                                 VerticalAlignment="Center" />
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <TextBlock x:Name="AdapterName" Text="{Binding Name}" FontSize="12" Foreground="{StaticResource TextDim}" />
+                                                <TextBlock Text="{Binding Description, StringFormat='· {0}'}" FontSize="11"
+                                                           Foreground="{StaticResource TextDim}" Margin="6,1,0,0" TextTrimming="CharacterEllipsis" />
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding Address}" FontFamily="{StaticResource MonoFont}" FontSize="11"
+                                                       Foreground="{StaticResource TextDim}" Margin="0,1,0,0" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsUp}" Value="True">
+                                        <Setter TargetName="Dot" Property="Fill" Value="{StaticResource AccentText}" />
+                                        <Setter TargetName="AdapterName" Property="Foreground" Value="{StaticResource TextName}" />
+                                        <Setter TargetName="StatusBadge" Property="Tone" Value="Low" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="No network adapters found." FontSize="11" Foreground="{StaticResource TextMuted}"
+                               Margin="13,9" Visibility="{Binding ShowNoAdapters, Converter={StaticResource BoolToVis}}" />
+                </Grid>
+                </ScrollViewer>
+            </Border>
+        </StackPanel>
+
+        <DockPanel Grid.Row="2" Margin="0,0,0,8">
+            <Border DockPanel.Dock="Right" BorderBrush="{StaticResource BorderInput}" BorderThickness="1" CornerRadius="3"
+                    VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="All" Command="{Binding SetStateFilterCommand}" CommandParameter="All"
+                            Tag="{Binding IsAllStates}" Style="{StaticResource SegmentedButton}" />
+                    <Button Content="Established" Command="{Binding SetStateFilterCommand}" CommandParameter="Established"
+                            Tag="{Binding IsEstablishedOnly}" Style="{StaticResource SegmentedButton}" BorderThickness="1,0,0,0" />
+                    <Button Content="Listening" Command="{Binding SetStateFilterCommand}" CommandParameter="Listening"
+                            Tag="{Binding IsListeningOnly}" Style="{StaticResource SegmentedButton}" BorderThickness="1,0,0,0" />
+                </StackPanel>
+            </Border>
+            <Grid DockPanel.Dock="Right" Width="180" Margin="0,0,8,0" VerticalAlignment="Center">
+                <TextBox Style="{StaticResource InputBox}" Padding="26,4,8,4"
+                         Text="{Binding ProcessFilter, UpdateSourceTrigger=PropertyChanged}" />
+                <Canvas Width="12" Height="12" HorizontalAlignment="Left" Margin="8,0,0,0" VerticalAlignment="Center"
+                        IsHitTestVisible="False">
+                    <Ellipse Canvas.Left="1" Canvas.Top="1" Width="8" Height="8"
+                             Stroke="{StaticResource TextFaint}" StrokeThickness="1.2" />
+                    <Line X1="8" Y1="8" X2="11.5" Y2="11.5" Stroke="{StaticResource TextFaint}"
+                          StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                </Canvas>
+                <TextBlock Text="Filter by process…" Foreground="{StaticResource TextFaint}" FontSize="12"
+                           Margin="29,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ProcessFilter}" Value="">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+            <TextBlock Text="{Binding ConnectionsHeader}" Style="{StaticResource Label10}" VerticalAlignment="Center" />
+        </DockPanel>
+
+        <Border Grid.Row="3" Style="{StaticResource NetCard}" ClipToBounds="True">
+            <Grid>
+            <DataGrid Style="{StaticResource DataTable}" ItemsSource="{Binding Connections}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="PROCESS" Binding="{Binding Process, Mode=OneWay}" Width="2*" />
+                    <DataGridTextColumn Header="PID" Binding="{Binding Pid, Mode=OneWay}" Width="64"
+                                        ElementStyle="{StaticResource TableCellMono}" />
+                    <DataGridTemplateColumn Header="PROTO" Width="60" SortMemberPath="Protocol">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock x:Name="Proto" Text="{Binding Protocol}" FontFamily="{StaticResource MonoFont}"
+                                           Foreground="{StaticResource TonePurpleFg}" VerticalAlignment="Center" />
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsTcp}" Value="True">
+                                        <Setter TargetName="Proto" Property="Foreground" Value="{StaticResource ToneInfoFg}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="LOCAL" Binding="{Binding Local, Mode=OneWay}" Width="1.6*"
+                                        ElementStyle="{StaticResource TableCellMonoSmall}" />
+                    <DataGridTextColumn Header="REMOTE" Binding="{Binding Remote, Mode=OneWay}" Width="1.6*"
+                                        ElementStyle="{StaticResource TableCellMonoSmall}" />
+                    <DataGridTemplateColumn Header="STATE" Width="104" SortMemberPath="State">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock x:Name="StateText" Text="{Binding State}" FontSize="10"
+                                           Foreground="{StaticResource LevelWarm}" VerticalAlignment="Center" />
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsEstablished}" Value="True">
+                                        <Setter TargetName="StateText" Property="Foreground" Value="{StaticResource AccentText}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsListening}" Value="True">
+                                        <Setter TargetName="StateText" Property="Foreground" Value="{StaticResource ToneInfoFg}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsStateless}" Value="True">
+                                        <Setter TargetName="StateText" Property="Foreground" Value="{StaticResource TextDim}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+                <TextBlock Text="No connections to show." FontSize="11" Foreground="{StaticResource TextMuted}"
+                           HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,40,0,0" IsHitTestVisible="False"
+                           Visibility="{Binding ShowNoConnections, Converter={StaticResource BoolToVis}}" />
+            </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="4" Text="UDP has no connection state, so it shows —." FontSize="10"
+                   Foreground="{StaticResource TextFaint}" Margin="0,6,0,0" />
+    </Grid>
+    </ScrollViewer>
+</UserControl>

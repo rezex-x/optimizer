@@ -1,0 +1,2082 @@
+[
+  {
+    "id": "disable-gamedvr",
+    "freesRamMb": 30,
+    "name": "Disable Xbox Game DVR",
+    "category": "Gaming",
+    "description": "Turns off background game recording (Game DVR / Game Bar). Frees CPU/GPU during play.",
+    "benefit": "Frees CPU/GPU the background recorder used.",
+    "downsides": "Loses Game Bar clip capture.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "System\\GameConfigStore", "name": "GameDVR_Enabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\GameDVR", "name": "AllowGameDVR", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "gpu-hags",
+    "name": "Enable Hardware-Accelerated GPU Scheduling",
+    "category": "Graphics",
+    "description": "Sets HwSchMode=2 so the GPU manages its own scheduling. Requires a restart.",
+    "benefit": "Can cut a few ms of latency on modern GPUs.",
+    "downsides": "No effect (or rare instability) on older GPUs/drivers; needs restart.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", "name": "HwSchMode", "kind": "DWord", "value": 2 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "visualfx-perf",
+    "name": "Visual Effects: Best Performance",
+    "category": "Graphics",
+    "description": "Sets the Explorer visual-effects preference to best performance (VisualFXSetting=2).",
+    "benefit": "Snappier windows; a little GPU/CPU back.",
+    "downsides": "Loses animations/shadows; flatter look.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects", "name": "VisualFXSetting", "kind": "DWord", "value": 2 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "disable-fso",
+    "name": "Disable Fullscreen Optimizations (global)",
+    "category": "Graphics",
+    "description": "Forces classic exclusive fullscreen behavior via GameConfigStore flags.",
+    "benefit": "More consistent frame pacing in fullscreen.",
+    "downsides": "A few games alt-tab slower or flicker.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "System\\GameConfigStore", "name": "GameDVR_FSEBehaviorMode", "kind": "DWord", "value": 2 },
+      { "hive": "HKCU", "path": "System\\GameConfigStore", "name": "GameDVR_HonorUserFSEBehaviorMode", "kind": "DWord", "value": 1 },
+      { "hive": "HKCU", "path": "System\\GameConfigStore", "name": "GameDVR_DXGIHonorFSEWindowsCompatible", "kind": "DWord", "value": 1 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "priority-separation",
+    "name": "Foreground CPU Boost",
+    "category": "System",
+    "description": "Sets Win32PrioritySeparation=0x26 (38) for a stronger, short foreground quantum boost. It helps 1% lows mainly when Discord, a browser or RGB apps run in the background; on a clean system the effect is within noise.",
+    "benefit": "Better 1% lows on busy systems.",
+    "downsides": "Background tasks get less CPU; rarely can stutter.",
+    "type": "registry",
+    "risk": "medium",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\PriorityControl", "name": "Win32PrioritySeparation", "kind": "DWord", "value": 38 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\PriorityControl", "name": "Win32PrioritySeparation", "kind": "DWord", "value": 2 }
+    ]
+  },
+  {
+    "id": "disable-nagle",
+    "name": "Disable Nagle's Algorithm",
+    "category": "Network",
+    "description": "Adds TcpAckFrequency=1 and TCPNoDelay=1 to every TCP interface. Can reduce latency; may increase overhead on slow links.",
+    "benefit": "Slightly lower latency on some TCP games.",
+    "downsides": "More small packets; can hurt on slow/metered links; needs restart.",
+    "type": "batch",
+    "risk": "medium",
+    "requiresRestart": true,
+    "applyScript": "powershell -NoProfile -Command \"Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces' | ForEach-Object { New-ItemProperty -Path $_.PSPath -Name TcpAckFrequency -PropertyType DWord -Value 1 -Force; New-ItemProperty -Path $_.PSPath -Name TCPNoDelay -PropertyType DWord -Value 1 -Force }\"",
+    "revertScript": "powershell -NoProfile -Command \"Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces' | ForEach-Object { Remove-ItemProperty -Path $_.PSPath -Name TcpAckFrequency -ErrorAction SilentlyContinue; Remove-ItemProperty -Path $_.PSPath -Name TCPNoDelay -ErrorAction SilentlyContinue }\""
+  },
+  {
+    "id": "disable-sysmain",
+    "freesRamMb": 100,
+    "name": "Disable SysMain (Superfetch)",
+    "category": "System",
+    "description": "Stops and disables the SysMain service. Can help on SSDs; revert restores automatic start.",
+    "benefit": "Less background disk/CPU on SSD systems.",
+    "downsides": "Slower first-launch of some apps; little gain on modern SSDs.",
+    "type": "batch",
+    "risk": "medium",
+    "requiresRestart": false,
+    "applyScript": "sc stop SysMain & sc config SysMain start= disabled",
+    "revertScript": "sc config SysMain start= auto & sc start SysMain",
+    "detect": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\SysMain", "name": "Start", "kind": "DWord", "value": 4 }
+    ]
+  },
+  {
+    "id": "ultimate-power",
+    "name": "Ultimate Performance Power Plan",
+    "category": "Power",
+    "description": "Unlocks and activates the hidden Ultimate Performance power plan. On modern CPUs it rarely adds fps over High Performance; what it buys is steadier clocks and frame times. Revert switches back to Balanced.",
+    "benefit": "Steadier clocks and frame times.",
+    "downsides": "Higher idle power/heat; irrelevant on desktops on AC.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 & powercfg -setactive e9a42b02-d5df-448d-aa00-03f14749eb61",
+    "revertScript": "powercfg -setactive 381b4222-f694-41f0-9685-ff5bb260df2e"
+  },
+  {
+    "id": "disable-telemetry",
+    "name": "Disable Telemetry",
+    "category": "Privacy",
+    "description": "Stop Windows from collecting diagnostic/usage data.",
+    "benefit": "Stops diagnostic data collection.",
+    "downsides": "Some feedback-driven features degrade.",
+    "type": "registry",
+    "risk": "medium",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection", "name": "AllowTelemetry", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "disable-advertising-id",
+    "name": "Disable Advertising ID",
+    "category": "Privacy",
+    "description": "Prevent apps from using your advertising ID.",
+    "benefit": "Apps can't use your ad ID.",
+    "downsides": "Ads stay, just less personalized.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo", "name": "Enabled", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "disable-cortana",
+    "name": "Disable Cortana",
+    "category": "Privacy",
+    "description": "Disable Cortana via policy.",
+    "benefit": "Removes the Cortana assistant.",
+    "downsides": "Lose Cortana voice/search features.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search", "name": "AllowCortana", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "disable-app-suggestions",
+    "name": "Disable App Suggestions",
+    "category": "Privacy",
+    "description": "Remove promoted apps and suggestions from Start.",
+    "benefit": "No promoted apps in Start.",
+    "downsides": "Lose \"suggested\" app tips.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SystemPaneSuggestionsEnabled", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "disable-activity-history",
+    "name": "Disable Activity History",
+    "category": "Privacy",
+    "description": "Stop Windows from tracking app and file activity.",
+    "benefit": "Windows stops logging app/file activity.",
+    "downsides": "Timeline / cross-device resume stops.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\System", "name": "EnableActivityFeed", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "dark-mode",
+    "name": "Enable Dark Mode",
+    "category": "Personalization",
+    "description": "System-wide dark theme for Windows and apps.",
+    "benefit": "Easier on the eyes; matches the theme.",
+    "downsides": "A few older apps render oddly.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "name": "AppsUseLightTheme", "kind": "DWord", "value": 0 },
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "name": "SystemUsesLightTheme", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "classic-context-menu",
+    "name": "Restore Classic Context Menu",
+    "category": "Explorer",
+    "description": "Bring back the full right-click menu (Windows 11).",
+    "benefit": "Full right-click menu, no \"Show more options\".",
+    "downsides": "Loses the compact Win11 menu; needs restart/explorer.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Classes\\CLSID\\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\\InprocServer32", "name": null, "kind": "String", "value": "" }
+    ],
+    "revert": []
+  },
+  {
+    "id": "show-file-extensions",
+    "name": "Show File Extensions",
+    "category": "Explorer",
+    "description": "Show extensions for all file types.",
+    "benefit": "See real file types; safer.",
+    "downsides": "Slightly busier file names.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "HideFileExt", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "show-hidden-files",
+    "name": "Show Hidden Files",
+    "category": "Explorer",
+    "description": "Display hidden files in Explorer.",
+    "benefit": "See hidden/system files.",
+    "downsides": "Easier to touch files you shouldn't.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Hidden", "kind": "DWord", "value": 1 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "taskbar-left-align",
+    "name": "Taskbar Icons Left Align",
+    "category": "Taskbar",
+    "description": "Move taskbar icons to the left side.",
+    "benefit": "Classic left-aligned taskbar.",
+    "downsides": "Purely cosmetic.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarAl", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "disable-vbs",
+    "name": "Disable Memory Integrity / VBS",
+    "category": "System",
+    "description": "Turns off Core Isolation Memory Integrity and Virtualization-Based Security.",
+    "benefit": "Often 5-15% more FPS by removing VBS CPU overhead.",
+    "downsides": "Disables a major Windows exploit mitigation. Only do this on a machine where you accept lower security. Needs a restart.",
+    "warning": "NOT RECOMMENDED - this significantly lowers Windows security. Only for a trusted/test machine.",
+    "type": "registry",
+    "risk": "high",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\DeviceGuard\\Scenarios\\HypervisorEnforcedCodeIntegrity", "name": "Enabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\DeviceGuard", "name": "EnableVirtualizationBasedSecurity", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "game-mode-on",
+    "name": "Enable Game Mode",
+    "category": "Gaming",
+    "description": "Turns on Windows Game Mode so the foreground game is prioritized.",
+    "benefit": "Steadier frame times; fewer background interruptions while gaming.",
+    "downsides": "Negligible; a few setups see no change or rare stutter.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\GameBar", "name": "AllowAutoGameMode", "kind": "DWord", "value": 1 },
+      { "hive": "HKCU", "path": "Software\\Microsoft\\GameBar", "name": "AutoGameModeEnabled", "kind": "DWord", "value": 1 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "disable-mouse-accel",
+    "name": "Disable Mouse Acceleration",
+    "category": "Input",
+    "description": "Turns off 'Enhance pointer precision' so cursor movement is 1:1.",
+    "benefit": "Consistent aim; the same hand motion always moves the same distance.",
+    "downsides": "The desktop pointer can feel slower until you adjust sensitivity.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Control Panel\\Mouse", "name": "MouseSpeed", "kind": "String", "value": "0" },
+      { "hive": "HKCU", "path": "Control Panel\\Mouse", "name": "MouseThreshold1", "kind": "String", "value": "0" },
+      { "hive": "HKCU", "path": "Control Panel\\Mouse", "name": "MouseThreshold2", "kind": "String", "value": "0" }
+    ],
+    "revert": []
+  },
+  {
+    "id": "disable-sticky-filter-keys",
+    "name": "Disable Sticky & Filter Keys",
+    "category": "Input",
+    "description": "Stops the Shift x5 / hold-Shift accessibility popups.",
+    "benefit": "No accidental accessibility prompts interrupting a game.",
+    "downsides": "You lose the Sticky/Filter Keys accessibility shortcuts.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Control Panel\\Accessibility\\StickyKeys", "name": "Flags", "kind": "String", "value": "506" },
+      { "hive": "HKCU", "path": "Control Panel\\Accessibility\\Keyboard Response", "name": "Flags", "kind": "String", "value": "122" },
+      { "hive": "HKCU", "path": "Control Panel\\Accessibility\\ToggleKeys", "name": "Flags", "kind": "String", "value": "58" }
+    ],
+    "revert": []
+  },
+  {
+    "id": "disable-core-parking",
+    "name": "Disable CPU Core Parking",
+    "category": "CPU",
+    "description": "Keeps all CPU cores unparked on the active power scheme.",
+    "benefit": "Avoids the tiny wake-up delay when a parked core is needed.",
+    "downsides": "Often a small/none gain on modern Windows; slightly higher idle power.",
+    "type": "batch",
+    "risk": "medium",
+    "requiresRestart": false,
+    "applyScript": "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES 100 & powercfg -setactive SCHEME_CURRENT",
+    "revertScript": "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES 0 & powercfg -setactive SCHEME_CURRENT"
+  },
+  {
+    "id": "network-throttling-off",
+    "name": "Disable Network Throttling",
+    "category": "Network",
+    "description": "Removes the multimedia network throttle (NetworkThrottlingIndex).",
+    "benefit": "Can help high-refresh online play and streaming on fast links.",
+    "downsides": "Marginal on typical broadband; can slightly raise CPU under heavy network. Needs a restart.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "name": "NetworkThrottlingIndex", "kind": "DWord", "value": -1 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "name": "NetworkThrottlingIndex", "kind": "DWord", "value": 10 }
+    ]
+  },
+  {
+    "id": "system-responsiveness",
+    "name": "Multimedia System Responsiveness",
+    "category": "System",
+    "description": "Lowers SystemResponsiveness so games/multimedia get more scheduler share.",
+    "benefit": "Can smooth audio/gameplay under load.",
+    "downsides": "Minor; background service tasks get a little less CPU.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "name": "SystemResponsiveness", "kind": "DWord", "value": 10 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "name": "SystemResponsiveness", "kind": "DWord", "value": 20 }
+    ]
+  },
+  {
+    "id": "disable-startup-delay",
+    "name": "Disable Startup App Delay",
+    "category": "System",
+    "description": "Removes the artificial delay before startup apps launch at login.",
+    "benefit": "Startup programs open right away after login.",
+    "downsides": "Login is momentarily busier as everything starts at once.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Serialize", "name": "StartupDelayInMSec", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "menu-show-delay",
+    "name": "Instant Menu Show Delay",
+    "category": "System",
+    "description": "Sets the menu-open delay to zero for a snappier UI.",
+    "benefit": "Menus and fly-outs open instantly.",
+    "downsides": "Purely a UI feel change; some find instant menus twitchy.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Control Panel\\Desktop", "name": "MenuShowDelay", "kind": "String", "value": "0" }
+    ],
+    "revert": []
+  },
+  {
+    "id": "disable-hibernation",
+    "name": "Disable Hibernation",
+    "category": "Power",
+    "description": "Turns hibernation off and removes hiberfil.sys.",
+    "benefit": "Frees disk space equal to your RAM; full shutdowns are cleaner.",
+    "downsides": "No hibernate, and Fast Startup is disabled.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "powercfg /h off",
+    "revertScript": "powercfg /h on",
+    "detect": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\Power", "name": "HibernateEnabled", "kind": "DWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "consumerfeatures-off",
+    "name": "Disable Consumer Features",
+    "category": "Privacy",
+    "description": "Stops Windows from auto-installing promoted apps and content.",
+    "benefit": "Stops Windows auto-installing promoted/sponsored apps.",
+    "downsides": "Some Microsoft app suggestions stop appearing.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableWindowsConsumerFeatures", "kind": "DWord", "value": 1 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "store-search-off",
+    "name": "Disable Store Search Results",
+    "category": "Privacy",
+    "description": "Blocks Explorer's access to the Microsoft Store's local database so Start search no longer shows Store/web recommendations.",
+    "benefit": "Removes web/Store recommended results from Start search.",
+    "downsides": "Start search shows only local results.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"icacls $Env:LocalAppData\\Packages\\Microsoft.WindowsStore_8wekyb3d8bbwe\\LocalState\\store.db /deny *S-1-1-0:F\"",
+    "revertScript": "powershell -NoProfile -Command \"icacls $Env:LocalAppData\\Packages\\Microsoft.WindowsStore_8wekyb3d8bbwe\\LocalState\\store.db /grant *S-1-1-0:F\""
+  },
+  {
+    "id": "location-tracking-off",
+    "name": "Disable Location Tracking",
+    "category": "Privacy",
+    "description": "Turns off Windows location tracking and the location service.",
+    "benefit": "Turns off system location tracking and the location service.",
+    "downsides": "Apps needing location (Maps, weather) stop working.",
+    "type": "batch",
+    "risk": "medium",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"New-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\location' -Name Value -PropertyType String -Value 'Deny' -Force; New-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Sensor\\Overrides\\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}' -Name SensorPermissionState -PropertyType DWord -Value 0 -Force; New-ItemProperty -Path 'HKLM:\\SYSTEM\\Maps' -Name AutoUpdateEnabled -PropertyType DWord -Value 0 -Force; sc.exe config lfsvc start= disabled\"",
+    "revertScript": "powershell -NoProfile -Command \"New-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\location' -Name Value -PropertyType String -Value 'Allow' -Force; New-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Sensor\\Overrides\\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}' -Name SensorPermissionState -PropertyType DWord -Value 1 -Force; New-ItemProperty -Path 'HKLM:\\SYSTEM\\Maps' -Name AutoUpdateEnabled -PropertyType DWord -Value 1 -Force; sc.exe config lfsvc start= demand\"",
+    "detect": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\location", "name": "Value", "kind": "String", "value": "Deny" }
+    ]
+  },
+  {
+    "id": "delivery-optimization-off",
+    "name": "Disable Delivery Optimization",
+    "category": "Privacy",
+    "description": "Turns off peer-to-peer sharing of downloaded update files with other PCs over the internet or LAN.",
+    "benefit": "Stops Windows sharing update files P2P with other PCs.",
+    "downsides": "Updates download only from Microsoft; can be slower on some networks.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\DeliveryOptimization", "name": "DODownloadMode", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "wpbt-off",
+    "name": "Disable Windows Platform Binary Table",
+    "category": "Privacy",
+    "description": "Blocks the WPBT mechanism vendors use to auto-execute firmware-supplied software at Windows boot.",
+    "benefit": "Blocks vendor firmware from auto-installing software into Windows.",
+    "downsides": "Some OEM utilities won't auto-reinstall; change only if you understand it.",
+    "type": "registry",
+    "risk": "medium",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\Session Manager", "name": "DisableWpbtExecution", "kind": "DWord", "value": 1 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "device-metadata-off",
+    "name": "Prevent Device Metadata From Network",
+    "category": "Privacy",
+    "description": "Stops Windows from fetching device metadata and companion apps from the network when a device is plugged in.",
+    "benefit": "Stops Windows fetching device metadata/companion apps online.",
+    "downsides": "Some devices show generic names/icons.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\Device Metadata", "name": "PreventDeviceMetadataFromNetwork", "kind": "DWord", "value": 1 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "background-apps-off",
+    "freesRamMb": 150,
+    "name": "Disable Background Apps",
+    "category": "Privacy",
+    "description": "Prevents Store apps from running in the background system-wide.",
+    "benefit": "Prevents Store apps running in the background.",
+    "downsides": "Some apps won't show live notifications until opened.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications", "name": "GlobalUserDisabled", "kind": "DWord", "value": 1 }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications", "name": "GlobalUserDisabled", "kind": "DWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "windows-ai-off",
+    "freesRamMb": 100,
+    "name": "Disable Windows AI (Copilot & Recall)",
+    "category": "Privacy",
+    "description": "Hides AI settings, disables Notepad AI features, removes Copilot packages, and disables the Recall optional feature and its background service.",
+    "benefit": "Disables Copilot and Recall.",
+    "downsides": "Removed AI components won't reinstall on revert; some entry points may remain.",
+    "type": "batch",
+    "risk": "medium",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"New-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name SettingsPageVisibility -PropertyType String -Value 'hide:aicomponents' -Force; New-ItemProperty -Path 'HKLM:\\SOFTWARE\\Policies\\WindowsNotepad' -Name DisableAIFeatures -PropertyType DWord -Value 1 -Force; $Appx = (Get-AppxPackage MicrosoftWindows.Client.CoreAI).PackageFullName; $Sid = (Get-LocalUser $Env:UserName).Sid.Value; New-Item ('HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Appx\\AppxAllUserStore\\EndOfLife\\' + $Sid + '\\' + $Appx) -Force; Get-AppxPackage -AllUsers '*Copilot*' | Remove-AppxPackage -AllUsers; winget uninstall -e --name 'Copilot' --silent --force --accept-source-agreements 2>$null; Get-AppxPackage -AllUsers Microsoft.MicrosoftOfficeHub | Remove-AppxPackage -AllUsers; if ($Appx) { Remove-AppxPackage $Appx }; Set-Service -Name WSAIFabricSvc -StartupType Disabled; Disable-WindowsOptionalFeature -FeatureName Recall -Online -NoRestart; Write-Host 'Windows AI Disabled'\"",
+    "revertScript": "powershell -NoProfile -Command \"Remove-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name SettingsPageVisibility -ErrorAction SilentlyContinue; Remove-ItemProperty -Path 'HKLM:\\SOFTWARE\\Policies\\WindowsNotepad' -Name DisableAIFeatures -ErrorAction SilentlyContinue\"",
+    "detect": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "name": "SettingsPageVisibility", "kind": "String", "value": "hide:aicomponents" }
+    ]
+  },
+  {
+    "id": "adobe-net-block",
+    "name": "Block Adobe Telemetry Hosts",
+    "category": "Privacy",
+    "description": "Appends Adobe's activation and telemetry domains to the hosts file so they resolve to nowhere.",
+    "benefit": "Blocks Adobe telemetry/activation hosts via the hosts file.",
+    "downsides": "Downloads a block-list from GitHub and edits your system hosts file; can interfere with Adobe app licensing.",
+    "type": "batch",
+    "risk": "medium",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"$hostsUrl = Invoke-RestMethod -Uri https://github.com/Ruddernation-Designs/Adobe-URL-Block-List/raw/refs/heads/master/hosts; Add-Content -Path $Env:SystemRoot\\System32\\drivers\\etc\\hosts -Value $hostsUrl; ipconfig /flushdns; Write-Host 'Added Adobe url block list from host file'\"",
+    "revertScript": "powershell -NoProfile -Command \"Set-Content $Env:SystemRoot\\System32\\drivers\\etc\\hosts ((Get-Content $Env:SystemRoot\\System32\\drivers\\etc\\hosts) -join [Environment]::NewLine -replace '(?s)#New Ver.*', ''); ipconfig /flushdns; Write-Host 'Removed Adobe url block list from host file'\""
+  },
+  {
+    "id": "services-manual",
+    "name": "Set Extra Services to Manual",
+    "category": "System",
+    "description": "Stops and disables CscService, DiagTrack, and SharedAccess, sets MapsBroker and StorSvc to Manual, and tunes SvcHostSplitThresholdInKB to installed RAM.",
+    "benefit": "Sets extra telemetry/diagnostic services to Manual so they start only when needed.",
+    "downsides": "A few services no longer auto-start; revert restores their original startup.",
+    "type": "batch",
+    "risk": "medium",
+    "requiresRestart": false,
+    "applyScript": "sc stop CscService & sc config CscService start= disabled & sc stop DiagTrack & sc config DiagTrack start= disabled & sc config MapsBroker start= demand & sc config StorSvc start= demand & sc stop SharedAccess & sc config SharedAccess start= disabled & powershell -NoProfile -Command \"$Memory = (Get-CimInstance Win32_PhysicalMemory | Measure-Object Capacity -Sum).Sum / 1KB; Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control' -Name SvcHostSplitThresholdInKB -Value $Memory\"",
+    "revertScript": "sc config CscService start= demand & sc config DiagTrack start= auto & sc start DiagTrack & sc config MapsBroker start= auto & sc start MapsBroker & sc config StorSvc start= auto & sc start StorSvc & sc config SharedAccess start= auto & sc start SharedAccess",
+    "detect": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\DiagTrack", "name": "Start", "kind": "DWord", "value": 4 }
+    ]
+  },
+  {
+    "id": "bitlocker-off",
+    "name": "Disable BitLocker",
+    "category": "System",
+    "description": "Disables BitLocker drive encryption on the system drive.",
+    "benefit": "Turns off BitLocker drive encryption.",
+    "downsides": "Leaves your drive UNENCRYPTED — a major security downgrade. Decryption can take a long time.",
+    "warning": "NOT RECOMMENDED - this leaves your drive unencrypted and lowers security significantly.",
+    "type": "batch",
+    "risk": "high",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"Disable-BitLocker -MountPoint $Env:SystemDrive\"",
+    "revertScript": "powershell -NoProfile -Command \"Enable-BitLocker -MountPoint $Env:SystemDrive\""
+  },
+  {
+    "id": "reserved-storage-off",
+    "name": "Disable Reserved Storage",
+    "category": "System",
+    "description": "Disables Windows Reserved Storage, freeing the space it holds for updates and temp files.",
+    "benefit": "Frees the ~7GB Windows reserves for updates.",
+    "downsides": "Large updates may need you to free space manually.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "Dism /Online /Set-ReservedStorageState /State:Disabled",
+    "revertScript": "Dism /Online /Set-ReservedStorageState /State:Enabled"
+  },
+  {
+    "id": "storage-sense-off",
+    "name": "Disable Storage Sense",
+    "category": "System",
+    "description": "Turns off Storage Sense automatic cleanup of temporary files and old downloads.",
+    "benefit": "Stops Windows auto-deleting temp files and old downloads.",
+    "downsides": "You manage disk cleanup yourself.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy", "name": "01", "kind": "DWord", "value": 0 }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\StorageSense\\Parameters\\StoragePolicy", "name": "01", "kind": "DWord", "value": 1 }
+    ]
+  },
+  {
+    "id": "explorer-home-gallery-off",
+    "name": "Remove Explorer Home and Gallery",
+    "category": "System",
+    "description": "Unpins Home and Gallery from the File Explorer sidebar and sets This PC as the default view.",
+    "benefit": "Removes Home and Gallery from File Explorer's sidebar.",
+    "downsides": "Lose the recent-files Home view.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Classes\\CLSID\\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}", "name": "System.IsPinnedToNameSpaceTree", "kind": "DWord", "value": 0 },
+      { "hive": "HKCU", "path": "Software\\Classes\\CLSID\\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}", "name": "System.IsPinnedToNameSpaceTree", "kind": "DWord", "value": 0 },
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "LaunchTo", "kind": "DWord", "value": 1 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "explorer-autodiscovery-off",
+    "name": "Disable Explorer Folder Auto-Discovery",
+    "category": "System",
+    "description": "Clears Explorer's cached per-folder view database and pins every folder to the generic view instead of auto-detecting photo/music layouts.",
+    "benefit": "Stops Explorer auto-detecting folder types — speeds up big folders.",
+    "downsides": "Folders no longer auto-switch to photo/music layouts.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": true,
+    "applyScript": "powershell -NoProfile -Command \"$bags = 'HKCU:\\Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\Bags'; $bagMRU = 'HKCU:\\Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\BagMRU'; Remove-Item -Path $bags -Recurse -Force; Write-Host ('Removed ' + $bags); Remove-Item -Path $bagMRU -Recurse -Force; Write-Host ('Removed ' + $bagMRU); $allFolders = 'HKCU:\\Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\Bags\\AllFolders\\Shell'; if (!(Test-Path $allFolders)) { New-Item -Path $allFolders -Force; Write-Host ('Created ' + $allFolders) }; New-ItemProperty -Path $allFolders -Name 'FolderType' -Value 'NotSpecified' -PropertyType String -Force; Write-Host 'Set FolderType to NotSpecified'; Write-Host 'Please sign out and back in, or restart your computer to apply the changes!'\"",
+    "revertScript": "powershell -NoProfile -Command \"$bags = 'HKCU:\\Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\Bags'; $bagMRU = 'HKCU:\\Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\BagMRU'; Remove-Item -Path $bags -Recurse -Force; Write-Host ('Removed ' + $bags); Remove-Item -Path $bagMRU -Recurse -Force; Write-Host ('Removed ' + $bagMRU); Write-Host 'Please sign out and back in, or restart your computer to apply the changes!'\"",
+    "detect": [
+      { "hive": "HKCU", "path": "Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\Bags\\AllFolders\\Shell", "name": "FolderType", "kind": "String", "value": "NotSpecified" }
+    ]
+  },
+  {
+    "id": "clock-utc",
+    "name": "Set Hardware Clock to UTC",
+    "category": "System",
+    "description": "Sets RealTimeIsUniversal so Windows treats the hardware clock as UTC instead of local time.",
+    "benefit": "Stores the hardware clock in UTC (matches Linux for dual-boot).",
+    "downsides": "If Windows time looks wrong afterward, this is why; revert sets it back.",
+    "type": "registry",
+    "risk": "medium",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation", "name": "RealTimeIsUniversal", "kind": "QWord", "value": 1 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation", "name": "RealTimeIsUniversal", "kind": "QWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "remove-edge",
+    "name": "Remove Microsoft Edge",
+    "category": "Debloat",
+    "description": "Uninstalls Microsoft Edge system-wide by tricking Windows into unlocking the official uninstaller (a dummy MicrosoftEdge.exe in the legacy Edge folder), then runs it with --uninstall --system-level --force-uninstall --delete-profile.",
+    "benefit": "Uninstalls Microsoft Edge.",
+    "downsides": "Some Windows features expect Edge; revert may not fully reinstall it. Don't use if Edge is your browser.",
+    "warning": "NOT RECOMMENDED - removing a built-in app can break Windows features and may not fully reverse.",
+    "type": "batch",
+    "risk": "high",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"$Path = Resolve-Path -Path ($Env:ProgramFiles + ' (x86)\\Microsoft\\Edge\\Application\\*\\Installer\\setup.exe') | Select-Object -Last 1; if (Test-Path $Path) { New-Item -Path (Join-Path $Env:SystemRoot 'SystemApps\\Microsoft.MicrosoftEdge_8wekyb3d8bbwe\\MicrosoftEdge.exe') -Force; Start-Process -FilePath $Path -ArgumentList '--uninstall --system-level --force-uninstall --delete-profile' -Wait; Write-Host 'Microsoft Edge was removed' } else { Write-Host 'Microsoft Edge is not installed' }\"",
+    "revertScript": "powershell -NoProfile -Command \"Write-Host 'Installing Microsoft Edge...'; winget install Microsoft.Edge --source winget\""
+  },
+  {
+    "id": "remove-onedrive",
+    "name": "Remove OneDrive",
+    "category": "Debloat",
+    "description": "Uninstalls OneDrive via its own uninstaller, removes leftover OneDrive files and folders, unlinks the OneDrive folder, and disables the OneDrive sync service.",
+    "benefit": "Uninstalls OneDrive and unlinks its folders.",
+    "downsides": "Files-on-demand stops; revert may not fully restore OneDrive. Back up OneDrive files first.",
+    "warning": "NOT RECOMMENDED - removing a built-in app can break Windows features and may not fully reverse.",
+    "type": "batch",
+    "risk": "high",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"icacls $Env:OneDrive /deny '*S-1-5-32-544:(D,DC)'; Write-Host 'Uninstalling OneDrive...'; Start-Process -FilePath (Join-Path $Env:SystemRoot 'System32\\OneDriveSetup.exe') -ArgumentList '/uninstall' -Wait; Write-Host 'Removing leftover OneDrive Files...'; Stop-Process -Name FileCoAuth,Explorer; Remove-Item (Join-Path $Env:LocalAppData 'Microsoft\\OneDrive') -Recurse -Force; Remove-Item (Join-Path $Env:ProgramData 'Microsoft OneDrive') -Recurse -Force; icacls $Env:OneDrive /grant '*S-1-5-32-544:(D,DC)'; if (-not (Get-ChildItem -Path $Env:OneDrive)) { Remove-Item -Path $Env:OneDrive -Recurse; [Environment]::SetEnvironmentVariable('OneDrive', $null, 'User') }; Set-Service -Name OneSyncSvc -StartupType Disabled\"",
+    "revertScript": "powershell -NoProfile -Command \"Write-Host 'Installing OneDrive'; winget install Microsoft.Onedrive --source winget; Set-Service -Name OneSyncSvc -StartupType Automatic\""
+  },
+  {
+    "id": "edge-debloat",
+    "name": "Debloat Microsoft Edge",
+    "category": "Debloat",
+    "description": "Sets Edge policy registry keys to turn off telemetry, personalized ads, recommendations, rewards nags, the shopping assistant, and other popups.",
+    "benefit": "Turns off Edge's ads, sponsored content, and nags via policy.",
+    "downsides": "Edge loses some personalized features.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\EdgeUpdate", "name": "CreateDesktopShortcutDefault", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "PersonalizationReportingEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge\\ExtensionInstallBlocklist", "name": "1", "kind": "String", "value": "ofefcgjbeghpigppfmkologfjadafddi" },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "ShowRecommendationsEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "HideFirstRunExperience", "kind": "DWord", "value": 1 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "UserFeedbackAllowed", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "ConfigureDoNotTrack", "kind": "DWord", "value": 1 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "AlternateErrorPagesEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "EdgeCollectionsEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "EdgeShoppingAssistantEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "MicrosoftEdgeInsiderPromotionEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "ShowMicrosoftRewards", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "WebWidgetAllowed", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "DiagnosticData", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "EdgeAssetDeliveryServiceEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "WalletDonationEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Edge", "name": "DefaultBrowserSettingsCampaignEnabled", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "brave-debloat",
+    "name": "Debloat Brave Browser",
+    "category": "Debloat",
+    "description": "Sets Brave policy registry keys to disable Brave Rewards, Wallet, VPN, Talk, Tor, AI chat, and telemetry/reporting.",
+    "benefit": "Disables Brave's rewards/VPN/wallet nags via policy.",
+    "downsides": "Only relevant if you use Brave.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "BraveRewardsDisabled", "kind": "DWord", "value": 1 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "BraveWalletDisabled", "kind": "DWord", "value": 1 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "BraveVPNDisabled", "kind": "DWord", "value": 1 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "BraveAIChatEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "BraveStatsPingEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "BraveNewsDisabled", "kind": "DWord", "value": 1 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "BraveTalkDisabled", "kind": "DWord", "value": 1 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "TorDisabled", "kind": "DWord", "value": 1 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "BraveP3AEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "UrlKeyedAnonymizedDataCollectionEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "SafeBrowsingExtendedReportingEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\BraveSoftware\\Brave", "name": "MetricsReportingEnabled", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "razer-block",
+    "name": "Block Razer Software Auto-Install",
+    "category": "Debloat",
+    "description": "Disables Windows driver co-installers/search-order fallback and denies write access to the Razer installer cache so Razer Synapse can't auto-install when hardware is plugged in.",
+    "benefit": "Stops Windows auto-installing Razer Synapse on device plug-in.",
+    "downsides": "Install Synapse manually if you want it.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"New-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\DriverSearching' -Name SearchOrderConfig -PropertyType DWord -Value 0 -Force; New-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Device Installer' -Name DisableCoInstallers -PropertyType DWord -Value 1 -Force; $RazerPath = Join-Path $Env:SystemRoot 'Installer\\Razer'; if (Test-Path $RazerPath) { Remove-Item $RazerPath\\* -Recurse -Force } else { New-Item -Path $RazerPath -ItemType Directory }; icacls $RazerPath /deny '*S-1-1-0:(W)'\"",
+    "revertScript": "powershell -NoProfile -Command \"New-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\DriverSearching' -Name SearchOrderConfig -PropertyType DWord -Value 1 -Force; New-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Device Installer' -Name DisableCoInstallers -PropertyType DWord -Value 0 -Force; $RazerPath = Join-Path $Env:SystemRoot 'Installer\\Razer'; icacls $RazerPath /remove:d '*S-1-1-0'\"",
+    "detect": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Device Installer", "name": "DisableCoInstallers", "kind": "DWord", "value": 1 }
+    ]
+  },
+  {
+    "id": "logi-block",
+    "name": "Block Logitech Download Assistant",
+    "category": "Debloat",
+    "description": "Stops and removes the Logitech Download Assistant and denies write access to its install folder so Windows Update can't reinstall it alongside Logitech device drivers.",
+    "benefit": "Stops the Logitech Download Assistant auto-installing.",
+    "downsides": "Install Logitech software manually if you want it.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"Stop-Process -Name 'logi_download_assistant' -Force -ErrorAction SilentlyContinue; $ProgramFiles64 = if ($Env:ProgramW6432) { $Env:ProgramW6432 } else { $Env:ProgramFiles }; $LogiPath = Join-Path $ProgramFiles64 'LogiDownloadAssistant'; if (Test-Path $LogiPath) { Remove-Item $LogiPath\\* -Recurse -Force } else { New-Item -Path $LogiPath -ItemType Directory }; icacls $LogiPath /deny '*S-1-1-0:(W)'; if ($LASTEXITCODE -ne 0) { throw ('icacls failed to deny write access on ' + $LogiPath + ' (exit code ' + $LASTEXITCODE + ')') }\"",
+    "revertScript": "powershell -NoProfile -Command \"$ProgramFiles64 = if ($Env:ProgramW6432) { $Env:ProgramW6432 } else { $Env:ProgramFiles }; $LogiPath = Join-Path $ProgramFiles64 'LogiDownloadAssistant'; if (Test-Path $LogiPath) { icacls $LogiPath /remove:d '*S-1-1-0'; if ($LASTEXITCODE -ne 0) { throw ('icacls failed to remove the write-deny rule on ' + $LogiPath + ' (exit code ' + $LASTEXITCODE + ')') } }\""
+  },
+  {
+    "id": "ipv4-prefer",
+    "name": "Prefer IPv4 Over IPv6",
+    "category": "Network",
+    "description": "Sets the IPv6 DisabledComponents flag so the network stack prefers IPv4 addresses over IPv6.",
+    "benefit": "Prefers IPv4 over IPv6 (can fix some connection issues).",
+    "downsides": "Not a fix for IPv6-only services; rarely needed on modern networks.",
+    "type": "registry",
+    "risk": "medium",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters", "name": "DisabledComponents", "kind": "DWord", "value": 32 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters", "name": "DisabledComponents", "kind": "DWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "ipv6-off",
+    "name": "Disable IPv6",
+    "category": "Network",
+    "description": "Sets the IPv6 DisabledComponents flag to fully disable IPv6 and unbinds the IPv6 component from every network adapter.",
+    "benefit": "Disables IPv6 entirely.",
+    "downsides": "Breaks IPv6-only services; some VPNs/apps expect IPv6. Revert re-enables it.",
+    "type": "batch",
+    "risk": "medium",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"New-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters' -Name DisabledComponents -PropertyType DWord -Value 255 -Force; Disable-NetAdapterBinding -Name * -ComponentID ms_tcpip6\"",
+    "revertScript": "powershell -NoProfile -Command \"New-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters' -Name DisabledComponents -PropertyType DWord -Value 0 -Force; Enable-NetAdapterBinding -Name * -ComponentID ms_tcpip6\"",
+    "detect": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters", "name": "DisabledComponents", "kind": "DWord", "value": 255 }
+    ]
+  },
+  {
+    "id": "teredo-off",
+    "name": "Disable Teredo",
+    "category": "Network",
+    "description": "Sets the IPv6 DisabledComponents flag for Teredo and disables the Teredo tunneling interface via netsh.",
+    "benefit": "Disables Teredo IPv6 tunneling.",
+    "downsides": "Can affect some peer-to-peer / Xbox networking.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"New-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters' -Name DisabledComponents -PropertyType DWord -Value 1 -Force; netsh interface teredo set state disabled\"",
+    "revertScript": "powershell -NoProfile -Command \"New-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters' -Name DisabledComponents -PropertyType DWord -Value 0 -Force; netsh interface teredo set state default\"",
+    "detect": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters", "name": "DisabledComponents", "kind": "DWord", "value": 1 }
+    ]
+  },
+  {
+    "id": "rdp-unsigned-warning-off",
+    "name": "Disable Unsigned RDP File Warning",
+    "category": "Network",
+    "description": "Sets the Terminal Services Client policy and consent registry values so unsigned .rdp files launch without a warning prompt.",
+    "benefit": "Stops the warning when opening unsigned .rdp files.",
+    "downsides": "You lose a phishing safeguard for RDP files; trusted environments only.",
+    "type": "registry",
+    "risk": "medium",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\\Client", "name": "RedirectionWarningDialogVersion", "kind": "DWord", "value": 1 },
+      { "hive": "HKCU", "path": "SOFTWARE\\Microsoft\\Terminal Server Client", "name": "RdpLaunchConsentAccepted", "kind": "DWord", "value": 1 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "dns-cloudflare",
+    "name": "Set DNS to Cloudflare",
+    "category": "Network",
+    "description": "Points every adapter's IPv4 DNS servers at Cloudflare (1.1.1.1, 1.0.0.1).",
+    "benefit": "Sets DNS to Cloudflare (1.1.1.1) — fast, privacy-focused.",
+    "downsides": "Overrides your DNS on all adapters; revert restores automatic (DHCP).",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"Get-DnsClientServerAddress -AddressFamily IPv4 | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ServerAddresses ('1.1.1.1','1.0.0.1') }\"",
+    "revertScript": "powershell -NoProfile -Command \"Get-DnsClientServerAddress -AddressFamily IPv4 | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ResetServerAddresses }\""
+  },
+  {
+    "id": "dns-google",
+    "name": "Set DNS to Google",
+    "category": "Network",
+    "description": "Points every adapter's IPv4 DNS servers at Google Public DNS (8.8.8.8, 8.8.4.4).",
+    "benefit": "Sets DNS to Google (8.8.8.8).",
+    "downsides": "Overrides your DNS on all adapters; revert restores automatic (DHCP).",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"Get-DnsClientServerAddress -AddressFamily IPv4 | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ServerAddresses ('8.8.8.8','8.8.4.4') }\"",
+    "revertScript": "powershell -NoProfile -Command \"Get-DnsClientServerAddress -AddressFamily IPv4 | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ResetServerAddresses }\""
+  },
+  {
+    "id": "dns-quad9",
+    "name": "Set DNS to Quad9",
+    "category": "Network",
+    "description": "Points every adapter's IPv4 DNS servers at Quad9 (9.9.9.9, 149.112.112.112), which blocks known-malicious domains.",
+    "benefit": "Sets DNS to Quad9 (9.9.9.9) — blocks known-malicious domains.",
+    "downsides": "Can block sites Quad9 flags; revert restores automatic (DHCP).",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"Get-DnsClientServerAddress -AddressFamily IPv4 | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ServerAddresses ('9.9.9.9','149.112.112.112') }\"",
+    "revertScript": "powershell -NoProfile -Command \"Get-DnsClientServerAddress -AddressFamily IPv4 | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ResetServerAddresses }\""
+  },
+  {
+    "id": "dns-dhcp-reset",
+    "name": "Reset DNS to Automatic (DHCP)",
+    "category": "Network",
+    "description": "Resets every adapter's IPv4 DNS servers back to automatic assignment via DHCP.",
+    "benefit": "Resets DNS on all adapters back to automatic (DHCP).",
+    "downsides": "Undoes any manual DNS you set.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"Get-DnsClientServerAddress -AddressFamily IPv4 | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ResetServerAddresses }\"",
+    "revertScript": "powershell -NoProfile -Command \"Get-DnsClientServerAddress -AddressFamily IPv4 | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ResetServerAddresses }\""
+  },
+  {
+    "id": "end-task-taskbar",
+    "name": "Add End Task to Taskbar",
+    "category": "Taskbar",
+    "description": "Enables the 'End Task' option when right-clicking an app on the taskbar.",
+    "benefit": "Adds 'End Task' to the taskbar right-click menu.",
+    "downsides": "None to speak of.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\\TaskbarDeveloperSettings", "name": "TaskbarEndTask", "kind": "DWord", "value": 1 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "notifications-off",
+    "name": "Disable Notifications",
+    "category": "Notifications",
+    "description": "Turns off the notification center, toast popups, and the tray calendar flyout.",
+    "benefit": "Disables system-tray notifications and the calendar flyout.",
+    "downsides": "You stop seeing app notifications and the tray calendar.",
+    "type": "registry",
+    "risk": "medium",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Policies\\Microsoft\\Windows\\Explorer", "name": "DisableNotificationCenter", "kind": "DWord", "value": 1 },
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\PushNotifications", "name": "ToastEnabled", "kind": "DWord", "value": 0 }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\PushNotifications", "name": "ToastEnabled", "kind": "DWord", "value": 1 }
+    ]
+  },
+  {
+    "id": "bsod-verbose",
+    "name": "Verbose BSoD",
+    "category": "Personalization",
+    "description": "Enables detailed stop-code and parameter info on the blue screen of death.",
+    "benefit": "Shows technical stop-code details on a blue screen.",
+    "downsides": "Crash screen looks more technical.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\CrashControl", "name": "DisplayParameters", "kind": "DWord", "value": 1 },
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\CrashControl", "name": "DisableEmoticon", "kind": "DWord", "value": 1 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\CrashControl", "name": "DisplayParameters", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\CrashControl", "name": "DisableEmoticon", "kind": "DWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "battery-percentage",
+    "name": "Battery Percentage in Tray",
+    "category": "Personalization",
+    "description": "Shows the exact battery percentage next to the tray battery icon.",
+    "benefit": "Shows exact battery percentage in the tray (laptops).",
+    "downsides": "None.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "IsBatteryPercentageEnabled", "kind": "DWord", "value": 1 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "verbose-logon",
+    "name": "Verbose Logon Messages",
+    "category": "Personalization",
+    "description": "Shows detailed status messages while signing in and out of Windows.",
+    "benefit": "Shows detailed status messages during logon/logoff.",
+    "downsides": "Login screens look more technical.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", "name": "VerboseStatus", "kind": "DWord", "value": 1 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", "name": "VerboseStatus", "kind": "DWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "new-outlook-off",
+    "name": "Hide New Outlook Toggle",
+    "category": "Personalization",
+    "description": "Hides the in-app prompt urging you to switch to the new Outlook.",
+    "benefit": "Hides the 'Try the new Outlook' toggle.",
+    "downsides": "Hides the 'new Outlook' toggle, and switches you to classic Outlook if you'd already moved to the new one.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "SOFTWARE\\Microsoft\\Office\\16.0\\Outlook\\Preferences", "name": "UseNewOutlook", "kind": "DWord", "value": 0 },
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Office\\16.0\\Outlook\\Options\\General", "name": "HideNewOutlookToggle", "kind": "DWord", "value": 1 },
+      { "hive": "HKCU", "path": "Software\\Policies\\Microsoft\\Office\\16.0\\Outlook\\Options\\General", "name": "DoNewOutlookAutoMigration", "kind": "DWord", "value": 0 }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "SOFTWARE\\Microsoft\\Office\\16.0\\Outlook\\Preferences", "name": "UseNewOutlook", "kind": "DWord", "value": 1 },
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Office\\16.0\\Outlook\\Options\\General", "name": "HideNewOutlookToggle", "kind": "DWord", "value": 0 },
+      { "hive": "HKCU", "path": "Software\\Policies\\Microsoft\\Office\\16.0\\Outlook\\Options\\General", "name": "DoNewOutlookAutoMigration", "kind": "DWord", "value": 0 },
+      { "hive": "HKCU", "path": "Software\\Policies\\Microsoft\\Office\\16.0\\Outlook\\Preferences", "name": "NewOutlookMigrationUserSetting", "kind": "DWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "scrollbars-always",
+    "name": "Always-Visible Scrollbars",
+    "category": "Personalization",
+    "description": "Disables scrollbar auto-hide so scrollbars stay visible at all times.",
+    "benefit": "Keeps scrollbars always visible instead of auto-hiding.",
+    "downsides": "Scrollbars take a little space.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Control Panel\\Accessibility", "name": "DynamicScrollbars", "kind": "DWord", "value": 0 }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "Control Panel\\Accessibility", "name": "DynamicScrollbars", "kind": "DWord", "value": 1 }
+    ]
+  },
+  {
+    "id": "mpo-off",
+    "name": "Disable Multiplane Overlay",
+    "category": "Graphics",
+    "description": "Disables Multi-Plane Overlay compositing, a common source of GPU flicker/black-screen bugs.",
+    "benefit": "Disables Multi-Plane Overlay — can fix flicker/black-screen/stutter on some GPUs.",
+    "downsides": "May slightly raise GPU power for video; revert re-enables MPO.",
+    "type": "registry",
+    "risk": "medium",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\Dwm", "name": "OverlayTestMode", "kind": "DWord", "value": 5 },
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", "name": "DisableOverlays", "kind": "DWord", "value": 1 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "numlock-on-boot",
+    "name": "NumLock on Startup",
+    "category": "Personalization",
+    "description": "Sets the keyboard's Num Lock indicator on for new sessions at startup and logon.",
+    "benefit": "Turns NumLock on at startup/logon.",
+    "downsides": "Laptops without a numpad may get unexpected keys.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKU", "path": ".Default\\Control Panel\\Keyboard", "name": "InitialKeyboardIndicators", "kind": "String", "value": "2" },
+      { "hive": "HKCU", "path": "Control Panel\\Keyboard", "name": "InitialKeyboardIndicators", "kind": "String", "value": "2" }
+    ],
+    "revert": [
+      { "hive": "HKU", "path": ".Default\\Control Panel\\Keyboard", "name": "InitialKeyboardIndicators", "kind": "String", "value": "0" },
+      { "hive": "HKCU", "path": "Control Panel\\Keyboard", "name": "InitialKeyboardIndicators", "kind": "String", "value": "0" }
+    ]
+  },
+  {
+    "id": "window-snapping-off",
+    "name": "Disable Window Snapping",
+    "category": "Personalization",
+    "description": "Turns off Aero Snap so dragging windows to screen edges no longer auto-resizes them.",
+    "benefit": "Disables Aero Snap window snapping.",
+    "downsides": "You lose drag-to-edge snapping.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Control Panel\\Desktop", "name": "WindowArrangementActive", "kind": "String", "value": "0" }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "Control Panel\\Desktop", "name": "WindowArrangementActive", "kind": "String", "value": "1" }
+    ]
+  },
+  {
+    "id": "settings-home-off",
+    "name": "Hide Settings Home Page",
+    "category": "Explorer",
+    "description": "Sets SettingsPageVisibility to hide:home so the Settings app opens to System instead of Home.",
+    "benefit": "Hides the Settings app Home page, opening to System instead.",
+    "downsides": "Cosmetic only.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "name": "SettingsPageVisibility", "kind": "String", "value": "hide:home" }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "name": "SettingsPageVisibility", "kind": "String", "value": "show:home" }
+    ]
+  },
+  {
+    "id": "bing-search-off",
+    "name": "Disable Start Menu Bing Search",
+    "category": "Start Menu",
+    "description": "Sets BingSearchEnabled=0 so Windows Search no longer shows Bing/web results.",
+    "benefit": "Removes Bing/web results from Start menu search.",
+    "downsides": "Start search shows only local results.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Search", "name": "BingSearchEnabled", "kind": "DWord", "value": 0 }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Search", "name": "BingSearchEnabled", "kind": "DWord", "value": 1 }
+    ]
+  },
+  {
+    "id": "login-blur-off",
+    "name": "Disable Logon Screen Blur",
+    "category": "Personalization",
+    "description": "Sets DisableAcrylicBackgroundOnLogon=1 to remove the acrylic blur behind the logon screen.",
+    "benefit": "Removes the acrylic blur on the logon screen (cleaner/faster).",
+    "downsides": "Logon background is sharp instead of blurred.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\System", "name": "DisableAcrylicBackgroundOnLogon", "kind": "DWord", "value": 1 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\System", "name": "DisableAcrylicBackgroundOnLogon", "kind": "DWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "lockscreen-off",
+    "name": "Disable Lock Screen",
+    "category": "Personalization",
+    "description": "Sets NoLockScreen=1 so Windows skips straight to the sign-in screen on boot and wake.",
+    "benefit": "Skips the lock screen, going straight to sign-in.",
+    "downsides": "You lose the lock-screen wallpaper/widgets.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization", "name": "NoLockScreen", "kind": "DWord", "value": 1 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "start-recommendations-off",
+    "name": "Hide Start Menu Recommendations",
+    "category": "Start Menu",
+    "description": "Sets the HideRecommendedSection policies (and the Education-environment flag Windows also checks) so the Start menu's Recommended section is hidden.",
+    "benefit": "Hides the Recommended section in the Start menu.",
+    "downsides": "Recently added/opened items no longer appear there. Also disables Windows Spotlight on the lock screen as a side effect, and marks the device as an \"education environment\" (a Microsoft policy also used to suppress other consumer-suggestion features) — more than just the Start menu changes. Takes effect after you restart File Explorer or sign out.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\PolicyManager\\current\\device\\Start", "name": "HideRecommendedSection", "kind": "DWord", "value": 1 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\PolicyManager\\current\\device\\Education", "name": "IsEducationEnvironment", "kind": "DWord", "value": 1 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer", "name": "HideRecommendedSection", "kind": "DWord", "value": 1 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\PolicyManager\\current\\device\\Start", "name": "HideRecommendedSection", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\PolicyManager\\current\\device\\Education", "name": "IsEducationEnvironment", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer", "name": "HideRecommendedSection", "kind": "DWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "taskbar-search-hide",
+    "name": "Hide Taskbar Search Box",
+    "category": "Taskbar",
+    "description": "Sets SearchboxTaskbarMode=0 so the taskbar search box/icon is hidden.",
+    "benefit": "Hides the taskbar search box/icon.",
+    "downsides": "Use the Start menu to search instead.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Search", "name": "SearchboxTaskbarMode", "kind": "DWord", "value": 0 }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Search", "name": "SearchboxTaskbarMode", "kind": "DWord", "value": 1 }
+    ]
+  },
+  {
+    "id": "start-menu-classic",
+    "name": "Restore Classic Start Menu",
+    "category": "Start Menu",
+    "description": "Force-enables the pre-25H2 Start Menu feature flag to restore the Windows 10-style layout.",
+    "benefit": "Restores the Windows 10-style Start menu layout.",
+    "downsides": "Windows 10-era look; may not persist across major updates.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKLM", "path": "SYSTEM\\ControlSet001\\Control\\FeatureManagement\\Overrides\\8\\3036241548", "name": "EnabledState", "kind": "DWord", "value": 1 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "s0-network-standby",
+    "name": "Keep Network Alive During Modern Standby (S0)",
+    "category": "Power",
+    "description": "Sets the modern-standby (S0) network connectivity power setting so networking stays active while the PC is asleep.",
+    "benefit": "Keeps the network alive during modern standby (S0).",
+    "downsides": "Slightly higher power draw while asleep.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKCU", "path": "SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\f15576e8-98b7-4186-b944-eafa664402d9", "name": "ACSettingIndex", "kind": "DWord", "value": 1 }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\f15576e8-98b7-4186-b944-eafa664402d9", "name": "ACSettingIndex", "kind": "DWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "s3-sleep",
+    "name": "Enable S3 Sleep",
+    "category": "Power",
+    "description": "Sets PlatformAoAcOverride=0 to force classic S3 sleep instead of Modern Standby, on hardware that supports it.",
+    "benefit": "Enables classic S3 sleep (deeper sleep) where supported.",
+    "downsides": "Not all modern PCs support S3; may not apply on some hardware. Revert restores default.",
+    "type": "registry",
+    "risk": "medium",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\Power", "name": "PlatformAoAcOverride", "kind": "DWord", "value": 0 }
+    ],
+    "revert": []
+  },
+  {
+    "id": "disk-cleanup",
+    "name": "Run Disk Cleanup",
+    "category": "Maintenance",
+    "description": "Runs Windows Disk Cleanup on the system drive and cleans up the component store to reclaim disk space.",
+    "benefit": "Runs Windows Disk Cleanup + component-store cleanup to reclaim space.",
+    "downsides": "Runs once and cannot be undone; can take a while, and cleaning the component store means already-installed Windows updates can no longer be uninstalled.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "runOnce": true,
+    "applyScript": "cleanmgr.exe /d C: /VERYLOWDISK & Dism.exe /online /Cleanup-Image /StartComponentCleanup /ResetBase"
+  },
+  {
+    "id": "delete-temp-files",
+    "name": "Delete Temporary Files",
+    "category": "Maintenance",
+    "description": "Deletes files from your user Temp folder and the Windows Temp folder.",
+    "benefit": "Deletes temporary files from Windows and your user temp folders.",
+    "downsides": "Runs once and cannot be undone; clears temp caches.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "runOnce": true,
+    "applyScript": "powershell -NoProfile -Command \"Remove-Item -Path $Env:Temp\\* -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item -Path $Env:SystemRoot\\Temp\\* -Recurse -Force -ErrorAction SilentlyContinue\""
+  }
+,
+  {
+    "id": "tb-widgets", "name": "Hide Widgets Button", "category": "Taskbar",
+    "freesRamMb": 150,
+    "description": "Removes the weather/news Widgets button from the taskbar and turns Widgets off, through the supported policy (newer Windows 11 builds block the old per-user setting). Explorer may need a restart or a sign-out before the button disappears.",
+    "benefit": "Removes the Widgets button and its background process.",
+    "downsides": "Lose one-click weather/news widgets.",
+    "type": "registry", "risk": "low", "requiresRestart": false,
+    "apply":  [ { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Dsh", "name": "AllowNewsAndInterests", "kind": "DWord", "value": 0 } ],
+    "revert": [ { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Dsh", "name": "AllowNewsAndInterests", "kind": "DWord", "value": 1 } ]
+  },
+  {
+    "id": "tb-chat", "name": "Hide Chat Button", "category": "Taskbar",
+    "description": "Remove the Teams chat shortcut from the taskbar",
+    "benefit": "Removes the Chat button from the taskbar.",
+    "downsides": "Lose the one-click Teams chat shortcut.",
+    "type": "registry", "risk": "low", "requiresRestart": false,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarMn", "kind": "DWord", "value": 0 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarMn", "kind": "DWord", "value": 1 } ]
+  },
+  {
+    "id": "tb-taskview", "name": "Hide Task View Button", "category": "Taskbar",
+    "description": "Remove the Task View button",
+    "benefit": "One less button cluttering the taskbar.",
+    "downsides": "Lose the one-click Task View button (Win+Tab still opens it).",
+    "type": "registry", "risk": "low", "requiresRestart": false,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ShowTaskViewButton", "kind": "DWord", "value": 0 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ShowTaskViewButton", "kind": "DWord", "value": 1 } ]
+  },
+  {
+    "id": "tb-combine", "name": "Never Combine Taskbar Buttons", "category": "Taskbar",
+    "description": "Always show app labels in the taskbar",
+    "benefit": "See each window's title and switch between them faster.",
+    "downsides": "Taskbar fills up and can overflow with many windows open.",
+    "type": "registry", "risk": "low", "requiresRestart": false,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarGlomLevel", "kind": "DWord", "value": 2 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarGlomLevel", "kind": "DWord", "value": 0 } ]
+  },
+  {
+    "id": "sm-recentdocs", "name": "Disable Recent Files in Start", "category": "Start Menu",
+    "description": "Don't show recently opened files",
+    "benefit": "Keeps recently opened file names out of Start.",
+    "downsides": "Lose the quick jump back to recently used files.",
+    "type": "registry", "risk": "low", "requiresRestart": false,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Start_TrackDocs", "kind": "DWord", "value": 0 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Start_TrackDocs", "kind": "DWord", "value": 1 } ]
+  },
+  {
+    "id": "sm-morepins", "name": "More Pins Layout", "category": "Start Menu",
+    "description": "Show more pinned apps in Start",
+    "benefit": "Shows more pinned app tiles in Start before scrolling.",
+    "downsides": "Leaves less room for Start's recommended/recent items.",
+    "type": "registry", "risk": "low", "requiresRestart": false,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Start_Layout", "kind": "DWord", "value": 1 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Start_Layout", "kind": "DWord", "value": 0 } ]
+  },
+  {
+    "id": "ex-thispc", "name": "Open Explorer to This PC", "category": "Explorer",
+    "description": "Open File Explorer to This PC instead of Home",
+    "benefit": "Skips Home's recent-file and quick-access previews on open.",
+    "downsides": "Lose the at-a-glance recent and frequent folders on open.",
+    "type": "registry", "risk": "low", "requiresRestart": false,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "LaunchTo", "kind": "DWord", "value": 1 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "LaunchTo", "kind": "DWord", "value": 2 } ]
+  },
+  {
+    "id": "ex-compact", "name": "Compact View", "category": "Explorer",
+    "description": "Reduce spacing between items in Explorer",
+    "benefit": "Fits more files per screen in list and details view.",
+    "downsides": "Rows are tighter and harder to hit on touch/high-DPI screens.",
+    "type": "registry", "risk": "low", "requiresRestart": false,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "UseCompactMode", "kind": "DWord", "value": 1 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "UseCompactMode", "kind": "DWord", "value": 0 } ]
+  },
+  {
+    "id": "notif-tips", "name": "Disable Windows Tips", "category": "Notifications",
+    "description": "Stop Windows from showing tips and suggestions",
+    "benefit": "Fewer interruption popups while you work.",
+    "downsides": "Miss occasional genuinely useful feature tips.",
+    "type": "registry", "risk": "low", "requiresRestart": false,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-338389Enabled", "kind": "DWord", "value": 0 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-338389Enabled", "kind": "DWord", "value": 1 } ]
+  },
+  {
+    "id": "notif-suggested", "name": "Disable Suggested Content", "category": "Notifications",
+    "description": "Stop suggested content in Settings",
+    "benefit": "Removes promotional app suggestions from Settings.",
+    "downsides": "Lose Settings' occasional recommended-app callouts.",
+    "type": "registry", "risk": "low", "requiresRestart": false,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-338393Enabled", "kind": "DWord", "value": 0 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-338393Enabled", "kind": "DWord", "value": 1 } ]
+  },
+  {
+    "id": "power-throttling-off", "name": "Disable Power Throttling", "category": "System",
+    "description": "Stops Windows from throttling CPU speed to save power.",
+    "benefit": "Prevents background power-saving from slowing the CPU during games.",
+    "downsides": "Higher power draw and heat; on laptops this noticeably cuts battery life.",
+    "type": "registry", "risk": "medium", "requiresRestart": true,
+    "apply":  [ { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling", "name": "PowerThrottlingOff", "kind": "DWord", "value": 1 } ],
+    "revert": [ { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling", "name": "PowerThrottlingOff", "kind": "DWord", "value": 0 } ]
+  },
+  {
+    "id": "disable-paging-executive", "name": "Keep Kernel in Memory", "category": "System",
+    "description": "Stops the kernel and drivers from being paged to disk (DisablePagingExecutive).",
+    "benefit": "Can reduce DPC latency and hitching by keeping kernel code in RAM.",
+    "downsides": "Uses more RAM; little benefit on systems with limited memory.",
+    "type": "registry", "risk": "medium", "requiresRestart": true,
+    "apply":  [ { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management", "name": "DisablePagingExecutive", "kind": "DWord", "value": 1 } ],
+    "revert": [ { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management", "name": "DisablePagingExecutive", "kind": "DWord", "value": 0 } ]
+  },
+  {
+    "id": "best-performance-power-mode", "name": "Best Performance Power Mode", "category": "Power",
+    "description": "Sets the Windows power-mode slider to Best Performance (the overlay above your power plan).",
+    "benefit": "Reduces aggressive power saving for steadier clocks.",
+    "downsides": "Higher power and heat; on laptops it cuts battery life. Revert restores the recommended mode.",
+    "type": "batch", "risk": "low", "requiresRestart": false,
+    "applyScript": "powercfg /overlaysetactive ded574b5-45a0-4f42-8737-46345c09c238",
+    "revertScript": "powercfg /overlaysetactive 00000000-0000-0000-0000-000000000000"
+  },
+  {
+    "id": "windowed-games-optimization", "name": "Optimizations for Windowed Games", "category": "Graphics",
+    "description": "Enables Windows 11 flip-model presentation for borderless/windowed DX10/DX11 games.",
+    "benefit": "Lower latency in borderless games and unlocks Auto HDR / VRR for them.",
+    "downsides": "Rare capture/overlay quirks in a few apps; disable if you see stutter while recording.",
+    "type": "registry", "risk": "low", "requiresRestart": false,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\DirectX\\UserGpuPreferences", "name": "DirectXUserGlobalSettings", "kind": "String", "value": "SwapEffectUpgradeEnable=1;" } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\DirectX\\UserGpuPreferences", "name": "DirectXUserGlobalSettings", "kind": "String", "value": "SwapEffectUpgradeEnable=0;" } ]
+  },
+  {
+    "id": "disable-fast-startup", "name": "Disable Fast Startup", "category": "Power",
+    "description": "Turns off Fast Startup (hybrid shutdown) so shutdown fully closes the session.",
+    "benefit": "Cleaner boots; avoids stale driver/kernel state carried over from a hibernated shutdown.",
+    "downsides": "Cold boots take a little longer.",
+    "type": "registry", "risk": "low", "requiresRestart": false,
+    "apply":  [ { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power", "name": "HiberbootEnabled", "kind": "DWord", "value": 0 } ],
+    "revert": [ { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power", "name": "HiberbootEnabled", "kind": "DWord", "value": 1 } ]
+  },
+  {
+    "id": "enable-trim", "name": "Enable SSD TRIM", "category": "Maintenance",
+    "description": "Ensures Windows TRIM is enabled so SSDs clean up deleted blocks.",
+    "benefit": "Keeps SSD write performance healthy over time.",
+    "downsides": "Runs once; no effect on HDDs.",
+    "type": "batch", "risk": "low", "requiresRestart": false, "runOnce": true,
+    "applyScript": "fsutil behavior set DisableDeleteNotify 0"
+  },
+  {
+    "id": "clear-shader-cache", "name": "Clear Shader Caches", "category": "Maintenance",
+    "description": "Deletes DirectX and NVIDIA shader caches so they rebuild fresh.",
+    "benefit": "Fixes shader-related stutter or corruption after a driver change.",
+    "downsides": "Runs once; games briefly stutter while shaders recompile the first time.",
+    "type": "batch", "risk": "low", "requiresRestart": false, "runOnce": true,
+    "applyScript": "powershell -NoProfile -Command \"Remove-Item -Path $Env:LocalAppData\\D3DSCache\\* -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item -Path $Env:LocalAppData\\NVIDIA\\DXCache\\* -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item -Path $Env:LocalAppData\\NVIDIA\\GLCache\\* -Recurse -Force -ErrorAction SilentlyContinue\""
+  },
+  {
+    "id": "disable-search-indexing", "name": "Disable Search Indexing", "category": "System",
+    "freesRamMb": 60,
+    "description": "Disables the Windows Search (WSearch) service that indexes files.",
+    "benefit": "Frees disk and CPU from constant background indexing.",
+    "downsides": "Start menu and File Explorer searches become much slower.",
+    "warning": "Disputed benefit for gaming. Only disable if you rarely use Windows/Explorer search — it makes searches slow.",
+    "type": "registry", "risk": "high", "requiresRestart": true,
+    "apply":  [ { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\WSearch", "name": "Start", "kind": "DWord", "value": 4 } ],
+    "revert": [ { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\WSearch", "name": "Start", "kind": "DWord", "value": 2 } ]
+  },
+  {
+    "id": "disable-prefetcher", "name": "Disable Prefetch", "category": "System",
+    "description": "Turns off the Windows Prefetcher (EnablePrefetcher).",
+    "benefit": "Stops prefetch disk activity; occasionally suggested for all-SSD systems.",
+    "downsides": "Can make app and game launches slower; the benefit is unproven.",
+    "warning": "Disputed benefit. Modern Windows manages prefetch well on SSDs; disabling can slow launches.",
+    "type": "registry", "risk": "high", "requiresRestart": true,
+    "apply":  [ { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters", "name": "EnablePrefetcher", "kind": "DWord", "value": 0 } ],
+    "revert": [ { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management\\PrefetchParameters", "name": "EnablePrefetcher", "kind": "DWord", "value": 3 } ]
+  },
+  {
+    "id": "input-queue-size", "name": "Mouse/Keyboard Queue Size", "category": "Input",
+    "description": "Sets the mouse and keyboard driver input-buffer queue sizes.",
+    "benefit": "Some players report steadier input; the effect is small and hardware-dependent.",
+    "downsides": "Benefit is unproven and disputed; wrong values can drop inputs.",
+    "warning": "Disputed input hack — this app's own reference advises against unproven input tweaks. Apply only to test it.",
+    "type": "registry", "risk": "high", "requiresRestart": true,
+    "apply":  [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\mouclass\\Parameters", "name": "MouseDataQueueSize", "kind": "DWord", "value": 20 },
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\kbdclass\\Parameters", "name": "KeyboardDataQueueSize", "kind": "DWord", "value": 20 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\mouclass\\Parameters", "name": "MouseDataQueueSize", "kind": "DWord", "value": 100 },
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\kbdclass\\Parameters", "name": "KeyboardDataQueueSize", "kind": "DWord", "value": 100 }
+    ]
+  },
+  {
+    "id": "nic-power-saving-off", "name": "Disable Network Adapter Power Saving", "category": "Network",
+    "description": "Turns off power management on physical network adapters (no selective suspend / device turn-off).",
+    "benefit": "Can prevent brief disconnects or latency spikes from the NIC sleeping.",
+    "downsides": "Slightly higher idle power. Revert re-enables adapter power management.",
+    "warning": "Only helps if you get intermittent network disconnects; otherwise leave it enabled.",
+    "type": "batch", "risk": "medium", "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"Get-NetAdapter -Physical | ForEach-Object { Disable-NetAdapterPowerManagement -Name $_.Name -ErrorAction SilentlyContinue }\"",
+    "revertScript": "powershell -NoProfile -Command \"Get-NetAdapter -Physical | ForEach-Object { Enable-NetAdapterPowerManagement -Name $_.Name -ErrorAction SilentlyContinue }\""
+  },
+  {
+    "id": "cpu-max-performance", "name": "Max CPU Performance", "category": "CPU",
+    "description": "Pins the processor to 100% minimum and maximum state on the active power plan.",
+    "benefit": "Keeps CPU clocks from dropping between load spikes; steadier 1% lows.",
+    "downsides": "Higher idle power and heat; on laptops this noticeably cuts battery life.",
+    "type": "batch", "risk": "medium", "requiresRestart": false,
+    "applyScript": "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMIN 100 & powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX 100 & powercfg -setactive SCHEME_CURRENT",
+    "revertScript": "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMIN 5 & powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX 100 & powercfg -setactive SCHEME_CURRENT"
+  },
+  {
+    "id": "cpu-boost-aggressive", "name": "Aggressive CPU Boost", "category": "CPU",
+    "description": "Sets the processor performance boost mode to Aggressive on the active power plan.",
+    "benefit": "CPU boosts sooner and more often under load.",
+    "downsides": "Slightly more power and heat. Revert restores the Windows default (Efficient Enabled).",
+    "type": "batch", "risk": "low", "requiresRestart": false,
+    "applyScript": "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFBOOSTMODE 2 & powercfg -setactive SCHEME_CURRENT",
+    "revertScript": "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFBOOSTMODE 3 & powercfg -setactive SCHEME_CURRENT"
+  },
+  {
+    "id": "system-cooling-active", "name": "Active System Cooling", "category": "Power",
+    "description": "Sets the system cooling policy to Active (ramp fans before throttling) on the active power plan.",
+    "benefit": "Windows speeds up fans instead of slowing the CPU to control heat.",
+    "downsides": "Louder fans under load. Revert restores Passive cooling.",
+    "type": "batch", "risk": "low", "requiresRestart": false,
+    "applyScript": "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SYSCOOLPOL 1 & powercfg -setactive SCHEME_CURRENT",
+    "revertScript": "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SYSCOOLPOL 0 & powercfg -setactive SCHEME_CURRENT"
+  },
+  {
+    "id": "cpu-idle-disable", "name": "Disable CPU Idle (C-States)", "category": "CPU",
+    "description": "Stops the CPU from entering idle low-power states on the active power plan.",
+    "benefit": "Removes the tiny wake-up latency when cores leave idle.",
+    "downsides": "Large increase in idle power, heat, and fan noise for a very small latency gain.",
+    "warning": "Big heat/power cost for a small latency gain. Desktop-only, and only if you specifically want it.",
+    "type": "batch", "risk": "high", "requiresRestart": false,
+    "applyScript": "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR IDLEDISABLE 1 & powercfg -setactive SCHEME_CURRENT",
+    "revertScript": "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR IDLEDISABLE 0 & powercfg -setactive SCHEME_CURRENT"
+  },
+  {
+    "id": "disable-dynamic-tick", "name": "Disable Dynamic Tick", "category": "System",
+    "description": "Turns off the Windows dynamic timer tick at boot (bcdedit disabledynamictick).",
+    "benefit": "Forces a constant timer tick; some players report steadier frame pacing.",
+    "downsides": "Disputed benefit; can raise idle power. Reverting removes the override.",
+    "warning": "Boot-level timer change with a disputed benefit. Revert removes the override; a restart is needed for either to take effect.",
+    "type": "batch", "risk": "high", "requiresRestart": true,
+    "applyScript": "bcdedit /set disabledynamictick yes",
+    "revertScript": "bcdedit /deletevalue disabledynamictick"
+  },
+  {
+    "id": "tsc-sync-enhanced", "name": "TSC Sync Policy: Enhanced", "category": "System",
+    "description": "Sets the boot TSC synchronization policy to Enhanced (bcdedit tscsyncpolicy).",
+    "benefit": "Can improve timer consistency across cores on some multi-core systems.",
+    "downsides": "Disputed benefit; hardware-dependent. Reverting removes the override.",
+    "warning": "Boot-level TSC policy change with a disputed benefit. Revert removes the override; a restart is needed for either to take effect.",
+    "type": "batch", "risk": "high", "requiresRestart": true,
+    "applyScript": "bcdedit /set tscsyncpolicy Enhanced",
+    "revertScript": "bcdedit /deletevalue tscsyncpolicy"
+  },
+  {
+    "id": "raw-mouse-throttle-off",
+    "name": "Full-Rate Mouse Input for Background Windows",
+    "category": "Input",
+    "description": "Stops Windows 11 (22H2+) from slowing raw mouse input to unfocused windows to about 125 Hz, so overlays, recorders and alt-tabbed games get every movement.",
+    "benefit": "Full-rate mouse input outside the focused window; the throttle was explained by a Microsoft engineer.",
+    "downsides": "Slightly more background CPU use; no effect before Windows 11 22H2.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Control Panel\\Mouse", "name": "RawMouseThrottleEnabled", "kind": "DWord", "value": 0 }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "Control Panel\\Mouse", "name": "RawMouseThrottleEnabled", "kind": "DWord", "value": 1 }
+    ]
+  },
+  {
+    "id": "global-timer-resolution",
+    "name": "Global Timer Resolution Requests",
+    "category": "CPU",
+    "description": "Lets a game's high-resolution timer request apply to every process again (the behavior before Windows 10 2004). Windows 11 only; it does nothing on Windows 10.",
+    "benefit": "Measured: background timer precision around 1.5 ms instead of 15.6 ms.",
+    "downsides": "Slightly higher power use while a game holds a high timer resolution; needs a restart.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel", "name": "GlobalTimerResolutionRequests", "kind": "DWord", "value": 1 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel", "name": "GlobalTimerResolutionRequests", "kind": "DWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "hypervisor-off",
+    "name": "Turn Off the Windows Hypervisor",
+    "category": "System",
+    "description": "Stops the Windows hypervisor from loading at boot, which fully turns off Virtualization-Based Security; Windows updates can't quietly turn VBS back on while it is off.",
+    "benefit": "Removes VBS's CPU overhead in games.",
+    "downsides": "Turns off Memory Integrity and every virtualization feature; needs a restart.",
+    "warning": "Breaks Hyper-V, WSL2, Windows Sandbox, Memory Integrity and Windows Hello Enhanced Sign-in Security. VALORANT (Vanguard) and FACEIT check VBS and may refuse to start.",
+    "type": "batch",
+    "risk": "high",
+    "requiresRestart": true,
+    "applyScript": "bcdedit /set hypervisorlaunchtype off",
+    "revertScript": "bcdedit /set hypervisorlaunchtype auto"
+  },
+  {
+    "id": "click-to-do-off",
+    "name": "Turn Off Click to Do",
+    "category": "Privacy",
+    "description": "Turns off Click to Do, the Windows 11 AI overlay that analyzes what is on screen (Win + click).",
+    "benefit": "No AI screen analysis running in the background.",
+    "downsides": "Loses Click to Do's quick actions.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI", "name": "DisableClickToDo", "kind": "DWord", "value": 1 },
+      { "hive": "HKCU", "path": "Software\\Policies\\Microsoft\\Windows\\WindowsAI", "name": "DisableClickToDo", "kind": "DWord", "value": 1 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI", "name": "DisableClickToDo", "kind": "DWord", "value": 0 },
+      { "hive": "HKCU", "path": "Software\\Policies\\Microsoft\\Windows\\WindowsAI", "name": "DisableClickToDo", "kind": "DWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "paint-ai-off",
+    "name": "Turn Off Paint AI Features",
+    "category": "Privacy",
+    "description": "Turns off Paint's Image Creator, Generative Fill and Cocreator. Generative Erase and Remove Background can't be turned off by policy.",
+    "benefit": "Paint without cloud AI features.",
+    "downsides": "Loses those AI tools in Paint.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Paint", "name": "DisableImageCreator", "kind": "DWord", "value": 1 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Paint", "name": "DisableGenerativeFill", "kind": "DWord", "value": 1 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Paint", "name": "DisableCocreator", "kind": "DWord", "value": 1 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Paint", "name": "DisableImageCreator", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Paint", "name": "DisableGenerativeFill", "kind": "DWord", "value": 0 },
+      { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Paint", "name": "DisableCocreator", "kind": "DWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "lockscreen-tips-off",
+    "name": "Remove Lock Screen Tips and Ads",
+    "category": "Personalization",
+    "description": "Removes the fun facts, tips and ads Spotlight draws on the lock screen. The lock screen itself stays.",
+    "benefit": "A clean lock screen.",
+    "downsides": "None.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "RotatingLockScreenOverlayEnabled", "kind": "DWord", "value": 0 },
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-338387Enabled", "kind": "DWord", "value": 0 }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "RotatingLockScreenOverlayEnabled", "kind": "DWord", "value": 1 },
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-338387Enabled", "kind": "DWord", "value": 1 }
+    ]
+  },
+  {
+    "id": "explorer-recommended-off",
+    "name": "Hide Recommended in File Explorer Home",
+    "category": "Explorer",
+    "description": "Hides the Recommended row of suggested files on File Explorer's Home page.",
+    "benefit": "A tidier Explorer Home.",
+    "downsides": "Loses the suggested-files shortcuts.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ShowRecommendations", "kind": "DWord", "value": 0 }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ShowRecommendations", "kind": "DWord", "value": 1 }
+    ]
+  },
+  {
+    "id": "clipboard-actions-off",
+    "name": "Turn Off Clipboard Suggested Actions",
+    "category": "Personalization",
+    "description": "Turns off Suggested Actions, the pop-up that offers to call a copied phone number or add a copied date to your calendar.",
+    "benefit": "No pop-ups after copying text.",
+    "downsides": "Loses those shortcuts.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": false,
+    "apply": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\SmartActionPlatform\\SmartClipboard", "name": "Disabled", "kind": "DWord", "value": 1 }
+    ],
+    "revert": [
+      { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\SmartActionPlatform\\SmartClipboard", "name": "Disabled", "kind": "DWord", "value": 0 }
+    ]
+  },
+  {
+    "id": "telemetry-tasks-off",
+    "name": "Disable Telemetry Scheduled Tasks",
+    "category": "Privacy",
+    "description": "Disables the telemetry scheduled tasks (Compatibility Appraiser, CEIP, disk and network data collectors, feedback and error-report queues). They run even with telemetry turned off and feed CompatTelRunner.exe, which is known for CPU and disk spikes.",
+    "benefit": "Far fewer CompatTelRunner CPU and disk spikes.",
+    "downsides": "Big feature updates can turn the tasks back on; after an upgrade, turn this off and on again.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"foreach ($t in @('\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser', '\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser Exp', '\\Microsoft\\Windows\\Application Experience\\MareBackup', '\\Microsoft\\Windows\\Application Experience\\ProgramDataUpdater', '\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator', '\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip', '\\Microsoft\\Windows\\Customer Experience Improvement Program\\KernelCeipTask', '\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticDataCollector', '\\Microsoft\\Windows\\NetTrace\\GatherNetworkInfo', '\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient', '\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload', '\\Microsoft\\Windows\\Windows Error Reporting\\QueueReporting')) { schtasks /Change /TN $t /Disable 2>$null | Out-Null }; exit 0\"",
+    "revertScript": "powershell -NoProfile -Command \"foreach ($t in @('\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser', '\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser Exp', '\\Microsoft\\Windows\\Application Experience\\MareBackup', '\\Microsoft\\Windows\\Application Experience\\ProgramDataUpdater', '\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator', '\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip', '\\Microsoft\\Windows\\Customer Experience Improvement Program\\KernelCeipTask', '\\Microsoft\\Windows\\NetTrace\\GatherNetworkInfo', '\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient', '\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload', '\\Microsoft\\Windows\\Windows Error Reporting\\QueueReporting')) { schtasks /Change /TN $t /Enable 2>$null | Out-Null }; exit 0\""
+  },
+  {
+    "id": "xbox-services-off",
+    "name": "Disable Xbox Services",
+    "category": "Gaming",
+    "description": "Stops and disables Xbox Live sign-in, cloud saves and networking (XblAuthManager, XblGameSave, XboxNetApiSvc). The Xbox controller service stays on.",
+    "benefit": "Stops them being started on demand if you don't use the Xbox app or Game Pass; they're usually idle already.",
+    "downsides": "Xbox app sign-in, cloud saves and Game Pass multiplayer stop working.",
+    "warning": "Game Pass and Microsoft Store games that use Xbox sign-in or cloud saves stop working until you turn this off.",
+    "type": "batch",
+    "risk": "medium",
+    "requiresRestart": false,
+    "detect": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\XblAuthManager", "name": "Start", "kind": "DWord", "value": 4 },
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\XblGameSave", "name": "Start", "kind": "DWord", "value": 4 },
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\XboxNetApiSvc", "name": "Start", "kind": "DWord", "value": 4 }
+    ],
+    "applyScript": "powershell -NoProfile -Command \"foreach ($s in @('XblAuthManager', 'XblGameSave', 'XboxNetApiSvc')) { Stop-Service $s -Force -ErrorAction SilentlyContinue; Set-Service $s -StartupType Disabled -ErrorAction SilentlyContinue }\"",
+    "revertScript": "powershell -NoProfile -Command \"foreach ($s in @('XblAuthManager', 'XblGameSave', 'XboxNetApiSvc')) { Set-Service $s -StartupType Manual -ErrorAction SilentlyContinue }\""
+  },
+  {
+    "id": "bluetooth-service-off",
+    "name": "Disable Bluetooth Support Service",
+    "category": "System",
+    "description": "Stops and disables the Bluetooth Support Service. Only for PCs that never use Bluetooth.",
+    "benefit": "Stops it being started on demand on PCs without Bluetooth devices; it's usually idle already.",
+    "downsides": "Every Bluetooth device stops working.",
+    "warning": "Every Bluetooth mouse, keyboard, headset and controller stops working until you turn this off.",
+    "type": "batch",
+    "risk": "high",
+    "requiresRestart": false,
+    "detect": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\bthserv", "name": "Start", "kind": "DWord", "value": 4 }
+    ],
+    "applyScript": "powershell -NoProfile -Command \"foreach ($s in @('bthserv')) { Stop-Service $s -Force -ErrorAction SilentlyContinue; Set-Service $s -StartupType Disabled -ErrorAction SilentlyContinue }\"",
+    "revertScript": "powershell -NoProfile -Command \"Set-Service bthserv -StartupType Manual -ErrorAction SilentlyContinue; Start-Service bthserv -ErrorAction SilentlyContinue\""
+  },
+  {
+    "id": "cdp-service-off",
+    "name": "Disable Connected Devices Platform",
+    "category": "Privacy",
+    "description": "Stops and disables the Connected Devices Platform service behind Phone Link, Nearby Share and cross-device features.",
+    "benefit": "Less cross-device background activity.",
+    "downsides": "Phone Link and Nearby Share stop working.",
+    "type": "batch",
+    "risk": "medium",
+    "requiresRestart": false,
+    "detect": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Services\\CDPSvc", "name": "Start", "kind": "DWord", "value": 4 }
+    ],
+    "applyScript": "powershell -NoProfile -Command \"foreach ($s in @('CDPSvc')) { Stop-Service $s -Force -ErrorAction SilentlyContinue; Set-Service $s -StartupType Disabled -ErrorAction SilentlyContinue }\"",
+    "revertScript": "sc config CDPSvc start= delayed-auto & sc start CDPSvc"
+  },
+  {
+    "id": "nvidia-telemetry-off",
+    "name": "Disable NVIDIA Telemetry Service",
+    "category": "Graphics",
+    "description": "Stops and disables the NVIDIA Telemetry Container service. Newer drivers no longer install it; then this does nothing.",
+    "benefit": "No NVIDIA usage reporting.",
+    "downsides": "None known.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"foreach ($s in @('NvTelemetryContainer')) { Stop-Service $s -Force -ErrorAction SilentlyContinue; Set-Service $s -StartupType Disabled -ErrorAction SilentlyContinue }\"",
+    "revertScript": "powershell -NoProfile -Command \"foreach ($s in @('NvTelemetryContainer')) { Set-Service $s -StartupType Automatic -ErrorAction SilentlyContinue }\""
+  },
+  {
+    "id": "tdr-delay",
+    "name": "Longer GPU Timeout (TDR Delay)",
+    "category": "Graphics",
+    "description": "Gives the GPU 8 seconds instead of 2 to respond before Windows resets the display driver. Stops false 'display driver stopped responding' resets under heavy load or an overclock.",
+    "benefit": "No false driver resets for overclockers and heavy workloads.",
+    "downsides": "A real GPU hang looks like a longer freeze before Windows recovers; needs a restart.",
+    "type": "registry",
+    "risk": "medium",
+    "requiresRestart": true,
+    "apply": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", "name": "TdrDelay", "kind": "DWord", "value": 8 }
+    ],
+    "revert": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", "name": "TdrDelay", "kind": "DWord", "value": 2 }
+    ]
+  },
+  {
+    "id": "nvidia-pstate-lock",
+    "name": "Lock NVIDIA GPU at Full Clocks",
+    "category": "Graphics",
+    "description": "Sets DisableDynamicPstate on every NVIDIA adapter so the GPU stays at its highest performance state (P0) and never clocks down. Does nothing without an NVIDIA GPU; apply again after a clean driver install. Not for laptops.",
+    "benefit": "No downclocking between frames.",
+    "downsides": "Much higher idle power, heat and fan noise; needs a restart.",
+    "warning": "The GPU never clocks down, even at the desktop. Reflex 'On + Boost' already raises clocks exactly when it helps. It is stronger than the NVIDIA tab's Power Management Mode, which still lets the GPU idle down; you don't need both.",
+    "type": "batch",
+    "risk": "high",
+    "requiresRestart": true,
+    "applyScript": "powershell -NoProfile -Command \"Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}' -ErrorAction SilentlyContinue | Where-Object { (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).ProviderName -like '*NVIDIA*' } | ForEach-Object { New-ItemProperty -Path $_.PSPath -Name DisableDynamicPstate -PropertyType DWord -Value 1 -Force | Out-Null }\"",
+    "revertScript": "powershell -NoProfile -Command \"Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}' -ErrorAction SilentlyContinue | Where-Object { (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).ProviderName -like '*NVIDIA*' } | ForEach-Object { Remove-ItemProperty -Path $_.PSPath -Name DisableDynamicPstate -ErrorAction SilentlyContinue }\""
+  },
+  {
+    "id": "rsc-off",
+    "name": "Disable Receive Segment Coalescing",
+    "category": "Network",
+    "description": "Turns off Receive Segment Coalescing on every network adapter. NVIDIA and Mellanox recommend this for latency-sensitive traffic.",
+    "benefit": "Packets are handed over immediately instead of being merged.",
+    "downsides": "Slightly more CPU on big downloads; no gaming benchmark behind it. Network adapters reconnect for a few seconds when applied or reverted.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "powershell -NoProfile -Command \"Disable-NetAdapterRsc -Name '*' -ErrorAction SilentlyContinue; exit 0\"",
+    "revertScript": "powershell -NoProfile -Command \"Enable-NetAdapterRsc -Name '*' -ErrorAction SilentlyContinue; exit 0\""
+  },
+  {
+    "id": "ecn-on",
+    "name": "Enable ECN",
+    "category": "Network",
+    "description": "Turns on Explicit Congestion Notification, which lets routers signal congestion without dropping packets (anti-bufferbloat). It only helps if your router and ISP support it.",
+    "benefit": "Fewer dropped packets on congested links that support ECN.",
+    "downsides": "No effect on networks without ECN support. Revert returns ECN to the Windows default (off).",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "netsh int tcp set global ecncapability=enabled",
+    "revertScript": "netsh int tcp set global ecncapability=default"
+  },
+  {
+    "id": "disable-8dot3",
+    "name": "Stop Creating 8.3 Short File Names",
+    "category": "System",
+    "description": "Stops NTFS from creating old DOS-style 8.3 short names for new files on every drive. Existing short names stay.",
+    "benefit": "Slightly faster file creation in very large folders.",
+    "downsides": "Very old installers may need short names; the real-world gain is small.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "detect": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\FileSystem", "name": "NtfsDisable8dot3NameCreation", "kind": "DWord", "value": 1 }
+    ],
+    "applyScript": "fsutil behavior set disable8dot3 1",
+    "revertScript": "fsutil behavior set disable8dot3 2"
+  },
+  {
+    "id": "ntfs-memory-usage",
+    "name": "More NTFS Cache Memory",
+    "category": "System",
+    "description": "Lets NTFS use more memory for its caches. Only for PCs with 16 GB of RAM or more.",
+    "benefit": "Faster file-system access on busy drives.",
+    "downsides": "Uses more memory, which hurts PCs that are short on RAM; needs a restart.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": true,
+    "detect": [
+      { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\FileSystem", "name": "NtfsMemoryUsage", "kind": "DWord", "value": 2 }
+    ],
+    "applyScript": "fsutil behavior set memoryusage 2",
+    "revertScript": "fsutil behavior set memoryusage 1"
+  },
+  {
+    "id": "scheduled-optimize-off",
+    "name": "Disable Scheduled Drive Optimization",
+    "category": "System",
+    "description": "Disables the weekly Optimize Drives task. Windows still trims SSDs as files are deleted, and you can still optimize drives by hand.",
+    "benefit": "No background optimization runs at inconvenient times.",
+    "downsides": "Hard drives no longer defragment on a schedule, and SSDs lose the weekly retrim pass.",
+    "type": "batch",
+    "risk": "low",
+    "requiresRestart": false,
+    "applyScript": "schtasks /Change /TN \\Microsoft\\Windows\\Defrag\\ScheduledDefrag /Disable",
+    "revertScript": "schtasks /Change /TN \\Microsoft\\Windows\\Defrag\\ScheduledDefrag /Enable"
+  },
+  {
+    "id": "bulk-app-removal",
+    "name": "Remove Preinstalled Apps",
+    "category": "Debloat",
+    "description": "Choose which preinstalled apps to remove (impact High/Medium/Low); they are removed for every user and won't reinstall for new users.",
+    "benefit": "A decluttered Start menu and fewer background app updates.",
+    "downsides": "Apps don't come back on their own; reinstall any you miss from the Microsoft Store.",
+    "warning": "Removes built-in apps for every user. The Store, Photos, Calculator, Paint, Notepad, Terminal, Media Player, Sticky Notes, Get Help (used by the troubleshooters) and the Xbox speech overlay are kept.",
+    "type": "batch",
+    "risk": "medium",
+    "requiresRestart": false,
+    "runOnce": true,
+    "applyScript": "powershell -NoProfile -Command \"$prov = Get-AppxProvisionedPackage -Online; foreach ($a in @('Clipchamp.Clipchamp', 'Microsoft.549981C3F5F10', 'microsoft.windowscommunicationsapps', 'MicrosoftTeams', 'Microsoft.ZuneVideo', 'Microsoft.MSPaint', 'Microsoft.SkypeApp', 'Microsoft.MicrosoftSolitaireCollection', 'Microsoft.WindowsSoundRecorder', 'Microsoft.BingNews', 'Microsoft.BingWeather', 'Microsoft.Getstarted', 'Microsoft.MicrosoftOfficeHub', 'Microsoft.People', 'Microsoft.WindowsFeedbackHub', 'Microsoft.WindowsMaps', 'Microsoft.PowerAutomateDesktop', 'Microsoft.Todos', 'Microsoft.3DBuilder', 'Microsoft.Microsoft3DViewer', 'Microsoft.MixedReality.Portal', 'Microsoft.OneConnect', 'Microsoft.Messaging', 'Microsoft.Print3D')) { Get-AppxPackage -AllUsers -Name $a | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue; $prov | Where-Object DisplayName -eq $a | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Out-Null }; exit 0\""
+  },
+  {
+    "id": "power-core-parking-min",
+    "name": "Core Parking: Minimum Unparked Cores",
+    "category": "CPU",
+    "description": "How many cores (as a % of all cores) Windows must keep unparked on the active power plan while plugged in. 100 % keeps every core awake, the same as the Disable CPU Core Parking switch. Gains from raising it are small on modern CPUs. On hybrid CPUs (Intel 12th gen and newer) this changes the efficiency cores; Windows keeps a separate setting for the performance cores.",
+    "benefit": "Avoids the brief delay when a parked core has to wake up.",
+    "downsides": "Slightly higher idle power and temperature.",
+    "type": "value",
+    "risk": "low",
+    "requiresRestart": false,
+    "power": { "subgroup": "54533251-82be-4824-96c1-47b60b740d00", "setting": "0cc5b647-c1df-4637-891a-dec35c318583", "min": 0, "max": 100, "step": 1, "unit": "%" }
+  },
+  {
+    "id": "power-core-parking-max",
+    "name": "Core Parking: Maximum Unparked Cores",
+    "category": "CPU",
+    "description": "The most cores (as a %) Windows may unpark on the active power plan while plugged in. Leave it at 100 %: lower values cap how many cores games and apps can use. On hybrid CPUs (Intel 12th gen and newer) this changes the efficiency cores; Windows keeps a separate setting for the performance cores.",
+    "benefit": "Lower values only save power; there is no gaming benefit.",
+    "downsides": "Anything below 100 % limits multi-core performance.",
+    "type": "value",
+    "risk": "medium",
+    "requiresRestart": false,
+    "power": { "subgroup": "54533251-82be-4824-96c1-47b60b740d00", "setting": "ea062031-0e34-4ff1-9b6d-eb1059334028", "min": 0, "max": 100, "step": 1, "unit": "%" }
+  },
+  {
+    "id": "power-min-processor-state",
+    "name": "Minimum Processor State",
+    "category": "CPU",
+    "description": "The lowest performance level (as a % of maximum) the CPU may drop to on the active power plan while plugged in. 100 % stops it clocking down at idle. Modern CPUs ramp up within milliseconds, so the measured gain is small. The Max CPU Performance switch sets this to 100 %. On hybrid CPUs (Intel 12th gen and newer) this changes the efficiency cores; Windows keeps a separate setting for the performance cores.",
+    "benefit": "Removes the ramp-up from idle clocks at the start of a burst.",
+    "downsides": "Higher idle power, heat and fan noise.",
+    "type": "value",
+    "risk": "medium",
+    "requiresRestart": false,
+    "power": { "subgroup": "54533251-82be-4824-96c1-47b60b740d00", "setting": "893dee8e-2bef-41e0-89c6-b55d0929964c", "min": 0, "max": 100, "step": 1, "unit": "%" }
+  },
+  {
+    "id": "power-idle-demote",
+    "name": "Processor Idle Demote Threshold",
+    "category": "CPU",
+    "description": "The busy level (%) above which Windows moves an idle core to a lighter sleep state on the active power plan while plugged in, so it wakes faster. Measured effects are small.",
+    "benefit": "Lower values keep cores in light sleep states that wake faster.",
+    "downsides": "Lower values raise idle power.",
+    "type": "value",
+    "risk": "low",
+    "requiresRestart": false,
+    "power": { "subgroup": "54533251-82be-4824-96c1-47b60b740d00", "setting": "4b92d758-5a24-4851-a470-815d78aee119", "min": 0, "max": 100, "step": 1, "unit": "%" }
+  },
+  {
+    "id": "power-idle-promote",
+    "name": "Processor Idle Promote Threshold",
+    "category": "CPU",
+    "description": "The busy level (%) below which Windows lets an idle core go into a deeper sleep state on the active power plan while plugged in. Deeper states save power but take longer to wake. Measured effects are small.",
+    "benefit": "Lower values keep cores out of deep sleep states, so they wake faster.",
+    "downsides": "Lower values raise idle power.",
+    "type": "value",
+    "risk": "low",
+    "requiresRestart": false,
+    "power": { "subgroup": "54533251-82be-4824-96c1-47b60b740d00", "setting": "7b224883-b3cc-4d79-819f-8374152cbe7c", "min": 0, "max": 100, "step": 1, "unit": "%" }
+  },
+  {
+    "id": "power-perf-increase-threshold",
+    "name": "Processor Performance Increase Threshold",
+    "category": "CPU",
+    "description": "The busy level (%) above which Windows raises the CPU clocks on the active power plan while plugged in. Lower ramps up sooner. Ignored when the CPU manages its own clocks (Intel Speed Shift, AMD CPPC), which most CPUs since 2016 do. On hybrid CPUs (Intel 12th gen and newer) this changes the efficiency cores; Windows keeps a separate setting for the performance cores.",
+    "benefit": "Lower values reach full clocks sooner under light load.",
+    "downsides": "Higher average clocks and power.",
+    "type": "value",
+    "risk": "low",
+    "requiresRestart": false,
+    "power": { "subgroup": "54533251-82be-4824-96c1-47b60b740d00", "setting": "06cadf0e-64ed-448a-8927-ce7bf90eb35d", "min": 0, "max": 100, "step": 1, "unit": "%" }
+  },
+  {
+    "id": "power-perf-decrease-threshold",
+    "name": "Processor Performance Decrease Threshold",
+    "category": "CPU",
+    "description": "The busy level (%) below which Windows lowers the CPU clocks on the active power plan while plugged in. Lower holds high clocks longer. Ignored when the CPU manages its own clocks (Intel Speed Shift, AMD CPPC), which most CPUs since 2016 do. On hybrid CPUs (Intel 12th gen and newer) this changes the efficiency cores; Windows keeps a separate setting for the performance cores.",
+    "benefit": "Lower values keep clocks up between bursts.",
+    "downsides": "Higher average clocks and power.",
+    "type": "value",
+    "risk": "low",
+    "requiresRestart": false,
+    "power": { "subgroup": "54533251-82be-4824-96c1-47b60b740d00", "setting": "12a0ab44-fe28-4fa9-b3bd-4b64f44960a6", "min": 0, "max": 100, "step": 1, "unit": "%" }
+  },
+  {
+    "id": "power-perf-check-interval",
+    "name": "Processor Performance Check Interval",
+    "category": "CPU",
+    "description": "How often (ms) Windows re-checks whether to change the CPU clocks on the active power plan while plugged in. Lower reacts faster at a little more overhead. Has little effect when the CPU manages its own clocks (Intel Speed Shift, AMD CPPC), which most CPUs since 2016 do.",
+    "benefit": "Faster reaction to sudden load on older CPUs.",
+    "downsides": "Very low values add scheduling overhead.",
+    "type": "value",
+    "risk": "low",
+    "requiresRestart": false,
+    "power": { "subgroup": "54533251-82be-4824-96c1-47b60b740d00", "setting": "4d2b0152-7d5c-498b-88e2-34345392a2c5", "min": 1, "max": 5000, "step": 1, "unit": "ms" }
+  },
+  {
+    "id": "power-boost-mode",
+    "name": "Processor Boost Mode",
+    "category": "CPU",
+    "description": "How eagerly the CPU boosts above its base clock on the active power plan while plugged in. Disabled caps it at base clock (only useful for heat or noise); Aggressive boosts whenever it can. The Aggressive CPU Boost switch sets Aggressive.",
+    "benefit": "Aggressive keeps boost clocks up in games; Disabled cuts heat on a hot laptop.",
+    "downsides": "Aggressive raises power and heat; Disabled costs a lot of performance.",
+    "type": "value",
+    "risk": "medium",
+    "requiresRestart": false,
+    "power": { "subgroup": "54533251-82be-4824-96c1-47b60b740d00", "setting": "be337238-0d82-4146-a960-4f3749d470c7", "options": [ { "value": 0, "label": "Disabled" }, { "value": 1, "label": "Enabled" }, { "value": 2, "label": "Aggressive" }, { "value": 3, "label": "Efficient Enabled" }, { "value": 4, "label": "Efficient Aggressive" }, { "value": 5, "label": "Aggressive At Guaranteed" }, { "value": 6, "label": "Efficient Aggressive At Guaranteed" } ] }
+  },
+  {
+    "id": "power-pcie-aspm",
+    "name": "PCI Express Link Power Management",
+    "category": "Power",
+    "description": "Lets PCIe links (GPU, NVMe drives, network cards) drop into low-power states on the active power plan while plugged in. Off avoids the small wake-up delay; Balanced usually defaults to Moderate and High performance to Off.",
+    "benefit": "Off avoids link wake-up latency.",
+    "downsides": "Off uses a little more power.",
+    "type": "value",
+    "risk": "low",
+    "requiresRestart": false,
+    "power": { "subgroup": "501a4d13-42af-4429-9fd1-a8218c268e20", "setting": "ee12f906-d277-404b-b6da-e5fa1a576df5", "options": [ { "value": 0, "label": "Off" }, { "value": 1, "label": "Moderate power savings" }, { "value": 2, "label": "Maximum power savings" } ] }
+  },
+  {
+    "id": "power-usb-selective-suspend",
+    "name": "USB Selective Suspend",
+    "category": "Power",
+    "description": "Lets Windows suspend idle USB devices on the active power plan while plugged in. Disabling it fixes some mice, controllers and audio interfaces that drop out or lag after sitting idle.",
+    "benefit": "Stops idle USB devices from being suspended.",
+    "downsides": "A little more power use with many USB devices.",
+    "type": "value",
+    "risk": "low",
+    "requiresRestart": false,
+    "power": { "subgroup": "2a737441-1930-4402-8d77-b2bebba308a3", "setting": "48e6b7a6-50f5-4782-a5d4-53bb8f07e226", "options": [ { "value": 0, "label": "Disabled" }, { "value": 1, "label": "Enabled" } ] }
+  },
+  {
+    "id": "vfx-minimize-animation",
+    "name": "Turn Off Minimize/Maximize Animation",
+    "category": "Visual Effects",
+    "description": "Windows snap open and closed instead of animating. Takes effect after you sign out.",
+    "benefit": "Snappier minimize and maximize.",
+    "downsides": "Windows looks a little plainer; no measurable difference on gaming PCs.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply":  [ { "hive": "HKCU", "path": "Control Panel\\Desktop\\WindowMetrics", "name": "MinAnimate", "kind": "String", "value": "0" } ],
+    "revert": [ { "hive": "HKCU", "path": "Control Panel\\Desktop\\WindowMetrics", "name": "MinAnimate", "kind": "String", "value": "1" } ]
+  },
+  {
+    "id": "vfx-taskbar-animations",
+    "name": "Turn Off Taskbar Animations",
+    "category": "Visual Effects",
+    "description": "Taskbar buttons stop animating. Takes effect after you sign out.",
+    "benefit": "Less animation work on slow machines.",
+    "downsides": "Windows looks a little plainer; no measurable difference on gaming PCs.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarAnimations", "kind": "DWord", "value": 0 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarAnimations", "kind": "DWord", "value": 1 } ]
+  },
+  {
+    "id": "vfx-peek",
+    "name": "Turn Off Peek at the Desktop",
+    "category": "Visual Effects",
+    "description": "Hovering the taskbar corner no longer fades windows to show the desktop. Takes effect after you sign out.",
+    "benefit": "No accidental desktop peeks.",
+    "downsides": "Windows looks a little plainer; no measurable difference on gaming PCs.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\DWM", "name": "EnableAeroPeek", "kind": "DWord", "value": 0 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\DWM", "name": "EnableAeroPeek", "kind": "DWord", "value": 1 } ]
+  },
+  {
+    "id": "vfx-selection-rectangle",
+    "name": "Turn Off Translucent Selection Rectangle",
+    "category": "Visual Effects",
+    "description": "Drag-selecting files shows a plain outline instead of a translucent box. Takes effect after you sign out.",
+    "benefit": "Slightly less drawing work in Explorer.",
+    "downsides": "Windows looks a little plainer; no measurable difference on gaming PCs.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ListviewAlphaSelect", "kind": "DWord", "value": 0 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ListviewAlphaSelect", "kind": "DWord", "value": 1 } ]
+  },
+  {
+    "id": "vfx-icon-label-shadows",
+    "name": "Turn Off Desktop Icon Label Shadows",
+    "category": "Visual Effects",
+    "description": "Desktop icon names lose their drop shadow. Takes effect after you sign out.",
+    "benefit": "Slightly less drawing work on the desktop.",
+    "downsides": "Windows looks a little plainer; no measurable difference on gaming PCs.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ListviewShadow", "kind": "DWord", "value": 0 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ListviewShadow", "kind": "DWord", "value": 1 } ]
+  },
+  {
+    "id": "vfx-drag-full-windows",
+    "name": "Turn Off Window Contents While Dragging",
+    "category": "Visual Effects",
+    "description": "Dragging a window moves an outline instead of the whole window. Takes effect after you sign out.",
+    "benefit": "Smoother dragging on slow GPUs.",
+    "downsides": "Windows looks a little plainer; no measurable difference on gaming PCs.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply":  [ { "hive": "HKCU", "path": "Control Panel\\Desktop", "name": "DragFullWindows", "kind": "String", "value": "0" } ],
+    "revert": [ { "hive": "HKCU", "path": "Control Panel\\Desktop", "name": "DragFullWindows", "kind": "String", "value": "1" } ]
+  },
+  {
+    "id": "vfx-thumbnails",
+    "name": "Turn Off Thumbnails (Icons Only)",
+    "category": "Visual Effects",
+    "description": "Explorer shows icons instead of image and video thumbnails. Takes effect after you sign out.",
+    "benefit": "Faster folders full of photos and videos.",
+    "downsides": "Windows looks a little plainer; no measurable difference on gaming PCs.",
+    "type": "registry",
+    "risk": "low",
+    "requiresRestart": true,
+    "apply":  [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "IconsOnly", "kind": "DWord", "value": 1 } ],
+    "revert": [ { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "IconsOnly", "kind": "DWord", "value": 0 } ]
+  }
+]

@@ -1,0 +1,65 @@
+<UserControl x:Class="Tweaker.Controls.StatusBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:Tweaker.Converters"
+             x:Name="Root">
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
+        <conv:LogLineBrushConverter x:Key="LogLineBrush" Normal="{StaticResource LogText}" Danger="{StaticResource DangerText}" />
+    </UserControl.Resources>
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" Height="28" Background="{StaticResource BgTitle}"
+                BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,1,0,0" Padding="16,0,10,0">
+            <DockPanel VerticalAlignment="Center">
+                <ToggleButton DockPanel.Dock="Right" Cursor="Hand" Focusable="False"
+                              Content="{Binding ToggleText, ElementName=Root}"
+                              IsChecked="{Binding IsExpanded, ElementName=Root, Mode=TwoWay}">
+                    <ToggleButton.Template>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border Background="Transparent" Padding="4,2">
+                                <ContentPresenter x:Name="cp" VerticalAlignment="Center"
+                                                  TextElement.FontSize="11" TextElement.Foreground="{StaticResource TextMuted}" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="cp" Property="TextElement.Foreground" Value="{StaticResource TextName}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </ToggleButton.Template>
+                </ToggleButton>
+                <Ellipse Width="6" Height="6" Fill="{StaticResource AccentText}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding LastLine, ElementName=Root}" FontFamily="{StaticResource MonoFont}" FontSize="11"
+                           Foreground="{Binding LastLine, ElementName=Root, Converter={StaticResource LogLineBrush}}"
+                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
+        <Border Height="180" Background="{StaticResource BgPanel}" BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,1,0,0"
+                Visibility="{Binding IsExpanded, ElementName=Root, Converter={StaticResource BoolToVis}}">
+            <ItemsControl x:Name="LogList" ItemsSource="{Binding Lines, ElementName=Root}"
+                          VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                          ScrollViewer.CanContentScroll="True">
+                <ItemsControl.Template>
+                    <ControlTemplate TargetType="ItemsControl">
+                        <ScrollViewer x:Name="LogScroll" Style="{StaticResource ThemedScroll}" Padding="18,8"
+                                      CanContentScroll="True" Focusable="False">
+                            <ItemsPresenter />
+                        </ScrollViewer>
+                    </ControlTemplate>
+                </ItemsControl.Template>
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <VirtualizingStackPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" FontFamily="{StaticResource MonoFont}"
+                                   Foreground="{Binding Converter={StaticResource LogLineBrush}}"
+                                   FontSize="11" Margin="0,1" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+    </DockPanel>
+</UserControl>

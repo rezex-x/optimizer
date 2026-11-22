@@ -1,0 +1,41 @@
+<Window x:Class="Tweaker.Views.DisclaimerDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Tweaker" Width="500" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="NoResize"
+        AllowsTransparency="True" Background="Transparent" ShowInTaskbar="True"
+        FontFamily="{StaticResource AppFont}">
+    <Border Background="{StaticResource BgCard}" BorderBrush="{StaticResource BorderCard}" BorderThickness="1" CornerRadius="6">
+        <StackPanel>
+            <Border Background="{StaticResource BgPanel}" BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,0,0,1" Padding="20,16">
+                <TextBlock Text="Before you continue" FontSize="15" Foreground="{StaticResource TextActive}" />
+            </Border>
+            <StackPanel Margin="20,16,20,4">
+                <TextBlock Foreground="{StaticResource TextPrimary}" FontSize="12" TextWrapping="Wrap">
+                    Tweaker changes Windows registry keys, services, and settings. You apply these
+                    changes on your own behalf and are solely responsible for what you change. Some
+                    tweaks reduce security or can affect stability. Review each tweak's description and
+                    downsides before applying it.
+                </TextBlock>
+                <Border Background="#3A1414" BorderBrush="#5A2A2A" BorderThickness="1" CornerRadius="4" Margin="0,14,0,6" Padding="12,10">
+                    <TextBlock Foreground="#F0C0C0" FontSize="12.5" FontWeight="Bold" TextWrapping="Wrap"
+                               Text="Create a System Restore Point before proceeding, so you can roll back if something breaks." />
+                </Border>
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                    <Button x:Name="RestoreButton" Content="Create Restore Point" Style="{StaticResource RestorePointButton}" Click="Restore_Click" />
+                    <TextBlock x:Name="RestoreStatus" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="11" Foreground="{StaticResource TextMuted}" />
+                </StackPanel>
+            </StackPanel>
+            <Border BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,1,0,0" Padding="20,12" Margin="0,12,0,0">
+                <Grid>
+                    <CheckBox x:Name="DontShow" Content="Don't show this again" VerticalAlignment="Center"
+                              Foreground="{StaticResource TextMuted}" FontSize="11" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Exit" Style="{StaticResource GhostButton}" Margin="0,0,8,0" Click="Exit_Click" />
+                        <Button Content="I Understand — Continue" Style="{StaticResource AccentButton}" Click="Continue_Click" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
+    </Border>
+</Window>

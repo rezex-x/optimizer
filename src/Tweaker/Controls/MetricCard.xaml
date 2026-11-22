@@ -1,0 +1,26 @@
+<UserControl x:Class="Tweaker.Controls.MetricCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Tweaker.Controls"
+             x:Name="Root">
+    <Border Background="{StaticResource BgCard}" BorderBrush="{StaticResource BorderCard}" BorderThickness="1"
+            CornerRadius="4" Padding="14,12">
+        <StackPanel>
+            <DockPanel Margin="0,0,0,8">
+                <TextBlock DockPanel.Dock="Right" VerticalAlignment="Bottom">
+                    <Run Text="{Binding Value, ElementName=Root, Mode=OneWay}" FontFamily="{StaticResource MonoFont}"
+                         FontSize="14" Foreground="{StaticResource TextActive}" />
+                    <Run Text="{Binding Unit, ElementName=Root, Mode=OneWay}" FontSize="10" Foreground="{StaticResource TextDim}" />
+                </TextBlock>
+                <TextBlock Text="{Binding Label, ElementName=Root}" Style="{StaticResource Label10}" VerticalAlignment="Bottom" />
+            </DockPanel>
+            <controls:Sparkline Height="34" Values="{Binding History, ElementName=Root}"
+                                Maximum="{Binding Maximum, ElementName=Root}" SeriesBrush="{Binding SeriesBrush, ElementName=Root}" />
+            <ProgressBar Style="{StaticResource ThinBar}" Margin="0,8,0,0" Maximum="1"
+                         Value="{Binding Fraction, ElementName=Root, Mode=OneWay}"
+                         Foreground="{Binding SeriesBrush, ElementName=Root}" />
+            <TextBlock Text="{Binding Sub, ElementName=Root}" FontSize="10" Foreground="{StaticResource TextDim}"
+                       Margin="0,6,0,0" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+    </Border>
+</UserControl>

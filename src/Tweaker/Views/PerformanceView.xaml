@@ -1,0 +1,227 @@
+<UserControl x:Class="Tweaker.Views.PerformanceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Tweaker.Controls"
+             xmlns:conv="clr-namespace:Tweaker.Converters">
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
+        <Style x:Key="PerfCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource BgCard}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderCard}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style x:Key="KvLine" TargetType="Border">
+            <Setter Property="BorderBrush" Value="{StaticResource RowDivider}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Padding" Value="0,6" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer Style="{StaticResource ThemedScroll}" HorizontalScrollBarVisibility="Disabled" Padding="18,16">
+        <StackPanel>
+            <UniformGrid Columns="5" Margin="-5,0,-5,16">
+                <controls:MetricCard Margin="5,0" Label="CPU" Unit="%" SeriesBrush="{StaticResource SeriesCpu}"
+                                     Value="{Binding Cpu.ValueText}" Sub="{Binding Cpu.SubText}" History="{Binding Cpu.History}"
+                                     Maximum="{Binding Cpu.Maximum}" Fraction="{Binding Cpu.Fraction}" />
+                <controls:MetricCard Margin="5,0" Label="MEMORY" Unit="GB" SeriesBrush="{StaticResource SeriesRam}"
+                                     Value="{Binding Memory.ValueText}" Sub="{Binding Memory.SubText}" History="{Binding Memory.History}"
+                                     Maximum="{Binding Memory.Maximum}" Fraction="{Binding Memory.Fraction}" />
+                <controls:MetricCard Margin="5,0" Label="DISK" Unit="MB/s" SeriesBrush="{StaticResource SeriesDisk}"
+                                     Value="{Binding Disk.ValueText}" Sub="{Binding Disk.SubText}" History="{Binding Disk.History}"
+                                     Maximum="{Binding Disk.Maximum}" Fraction="{Binding Disk.Fraction}" />
+                <controls:MetricCard Margin="5,0" Label="NETWORK" Unit="MB/s" SeriesBrush="{StaticResource SeriesNet}"
+                                     Value="{Binding Network.ValueText}" Sub="{Binding Network.SubText}" History="{Binding Network.History}"
+                                     Maximum="{Binding Network.Maximum}" Fraction="{Binding Network.Fraction}" />
+                <controls:MetricCard Margin="5,0" Label="GPU" Unit="%" SeriesBrush="{StaticResource SeriesGpu}"
+                                     Value="{Binding Gpu.ValueText}" Sub="{Binding Gpu.SubText}" History="{Binding Gpu.History}"
+                                     Maximum="{Binding Gpu.Maximum}" Fraction="{Binding Gpu.Fraction}" />
+            </UniformGrid>
+
+            <TextBlock Text="SYSTEM" Style="{StaticResource Label10}" Margin="0,0,0,8" />
+            <Border Style="{StaticResource PerfCard}" Padding="14,4" Margin="0,0,0,16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <ItemsControl Grid.Column="0" ItemsSource="{Binding SystemRows}" ItemTemplate="{StaticResource KeyValueRowTemplate}" />
+                    <Grid Grid.Column="2" Visibility="{Binding HasDisks, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <ItemsControl ItemsSource="{Binding Disks}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="Row" Style="{StaticResource KvLine}">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding TempText}" FontFamily="{StaticResource MonoFont}"
+                                                               FontSize="11" Foreground="{StaticResource TextName}" Margin="12,0,0,0" />
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding ActivityText}" FontFamily="{StaticResource MonoFont}"
+                                                               FontSize="11" Foreground="{StaticResource TextName}" Margin="12,0,0,0"
+                                                               ToolTip="Disk activity" />
+                                                    <TextBlock Text="{Binding Name}" FontSize="11" Foreground="{StaticResource TextMuted}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </DockPanel>
+                                                <ProgressBar Style="{StaticResource ThinBar}" Maximum="1" Margin="0,4,0,0"
+                                                             Value="{Binding ActivityFraction, Mode=OneWay}" Foreground="{StaticResource SeriesDisk}" />
+                                                <DockPanel Margin="0,4,0,0">
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding UsedText}" FontFamily="{StaticResource MonoFont}"
+                                                               FontSize="10" Foreground="{StaticResource TextDim}" />
+                                                    <TextBlock Text="{Binding RatesText}" FontFamily="{StaticResource MonoFont}" FontSize="10"
+                                                               Foreground="{StaticResource TextDim}" />
+                                                </DockPanel>
+                                            </StackPanel>
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsLast}" Value="True">
+                                                <Setter TargetName="Row" Property="BorderThickness" Value="0" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <ItemsControl ItemsSource="{Binding Volumes}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="Row" Style="{StaticResource KvLine}">
+                                            <TextBlock Text="{Binding Text}" FontFamily="{StaticResource MonoFont}" FontSize="11"
+                                                       Foreground="{StaticResource TextDim}" TextTrimming="CharacterEllipsis" />
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsLast}" Value="True">
+                                                <Setter TargetName="Row" Property="BorderThickness" Value="0" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="14" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="{Binding CoresHeader}" Style="{StaticResource Label10}" Margin="0,0,0,8" />
+                    <Border Style="{StaticResource PerfCard}" Padding="14,8">
+                        <Grid>
+                            <ItemsControl ItemsSource="{Binding Cores}"
+                                          Visibility="{Binding HasCores, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="2" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,4,18,4">
+                                            <DockPanel Margin="0,0,0,3">
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding LoadText}" FontFamily="{StaticResource MonoFont}"
+                                                           FontSize="10" Foreground="{StaticResource TextMuted}" />
+                                                <TextBlock Text="{Binding Label}" FontSize="10" Foreground="{StaticResource TextDim}" />
+                                            </DockPanel>
+                                            <ProgressBar x:Name="Bar" Style="{StaticResource ThinBar}"
+                                                         Value="{Binding Load, Mode=OneWay}" Foreground="{StaticResource SeriesCpu}" />
+                                        </StackPanel>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsHigh}" Value="True">
+                                                <Setter TargetName="Bar" Property="Foreground" Value="{StaticResource CoreHot}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="Per-core load unavailable." FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4"
+                                       Visibility="{Binding HasCores, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Text="LATENCY (DPC / ISR)" Style="{StaticResource Label10}" Margin="0,14,0,8" />
+                    <Border Style="{StaticResource PerfCard}" Padding="14,10" DataContext="{Binding Dpc}">
+                        <StackPanel>
+                            <Button Content="{Binding ButtonLabel}" Command="{Binding SampleCommand}"
+                                    Style="{StaticResource AccentButtonSm}" HorizontalAlignment="Right" Margin="0,0,0,2" />
+                            <Border Style="{StaticResource KvLine}">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding DpcTime}" Style="{StaticResource KvValue}" FontFamily="{StaticResource MonoFont}" />
+                                    <TextBlock Text="DPC time" Style="{StaticResource KvKey}" />
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource KvLine}">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding InterruptTime}" Style="{StaticResource KvValue}" FontFamily="{StaticResource MonoFont}" />
+                                    <TextBlock Text="Interrupt time" Style="{StaticResource KvKey}" />
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource KvLine}">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding DpcsQueued}" Style="{StaticResource KvValue}" FontFamily="{StaticResource MonoFont}" />
+                                    <TextBlock Text="DPCs queued" Style="{StaticResource KvKey}" />
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource KvLine}" BorderThickness="0">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding InterruptsRate}" Style="{StaticResource KvValue}" FontFamily="{StaticResource MonoFont}" />
+                                    <TextBlock Text="Interrupts" Style="{StaticResource KvKey}" />
+                                </DockPanel>
+                            </Border>
+                            <TextBlock Text="DPC/ISR load, not true µs latency." FontSize="10" Foreground="{StaticResource TextFaint}" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="TEMPERATURES" Style="{StaticResource Label10}" Margin="0,0,0,8" />
+                    <Border Style="{StaticResource PerfCard}" Padding="14,4">
+                        <Grid>
+                            <ItemsControl ItemsSource="{Binding Temps}"
+                                          Visibility="{Binding HasTemps, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="Row" Style="{StaticResource KvLine}">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Text}" FontFamily="{StaticResource MonoFont}"
+                                                               FontSize="11" Foreground="{StaticResource TextName}" Margin="12,0,0,0" />
+                                                    <TextBlock Text="{Binding Label}" FontSize="11" Foreground="{StaticResource TextMuted}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </DockPanel>
+                                                <ProgressBar x:Name="Bar" Style="{StaticResource ThinBar}" Margin="0,4,0,0"
+                                                             Value="{Binding BarValue, Mode=OneWay}" Foreground="{StaticResource AccentText}" />
+                                            </StackPanel>
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsWarm}" Value="True">
+                                                <Setter TargetName="Bar" Property="Foreground" Value="{StaticResource LevelWarm}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsHot}" Value="True">
+                                                <Setter TargetName="Bar" Property="Foreground" Value="{StaticResource LevelHot}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsLast}" Value="True">
+                                                <Setter TargetName="Row" Property="BorderThickness" Value="0" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="No temperature sensors found. CPU sensors need administrator rights and the PawnIO driver; others vary by hardware."
+                                       TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,6"
+                                       Visibility="{Binding HasTemps, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                        </Grid>
+                    </Border>
+
+</StackPanel>
+            </Grid>
+
+            <TextBlock Text="CPU clocks and temperatures need the PawnIO driver; other sensors vary by hardware. Missing values show as —."
+                       Foreground="{StaticResource TextFaint}" FontSize="11" Margin="0,14,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

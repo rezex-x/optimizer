@@ -1,0 +1,295 @@
+<UserControl x:Class="Tweaker.Views.TweaksView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:Tweaker.Converters"
+             xmlns:controls="clr-namespace:Tweaker.Controls">
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
+        <conv:UpperCaseConverter x:Key="Upper" />
+        <conv:RiskBadgeConverter x:Key="RiskBadge" />
+        <conv:ImpactToBadgeToneConverter x:Key="ImpactTone" />
+    </UserControl.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="140" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="CATEGORY" Style="{StaticResource Label10}"
+                           Foreground="{StaticResource TextFaint}" Margin="14,16,12,6" />
+                <ListBox Style="{StaticResource NavList}" ItemsSource="{Binding Categories}"
+                         SelectedItem="{Binding SelectedCategory, Mode=TwoWay}" />
+            </DockPanel>
+        </Border>
+
+        <DockPanel Grid.Column="1">
+            <Border DockPanel.Dock="Top" BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,0,0,1"
+                    Padding="18,12">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="RestorePointButton" Content="Create Restore Point"
+                                Style="{StaticResource RestorePointButton}"
+                                Click="RestorePointButton_Click" />
+                    </StackPanel>
+                    <Grid Margin="0,0,12,0" VerticalAlignment="Center">
+                        <TextBox x:Name="SearchInput" Style="{StaticResource InputBox}" Padding="26,5,8,5"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                        <Canvas Width="12" Height="12" HorizontalAlignment="Left" Margin="8,0,0,0" VerticalAlignment="Center"
+                                IsHitTestVisible="False">
+                            <Ellipse Canvas.Left="1" Canvas.Top="1" Width="8" Height="8"
+                                     Stroke="{StaticResource TextFaint}" StrokeThickness="1.2" />
+                            <Line X1="8" Y1="8" X2="11.5" Y2="11.5" Stroke="{StaticResource TextFaint}"
+                                  StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                        </Canvas>
+                        <TextBlock Text="Search tweaks…" Foreground="{StaticResource TextFaint}" FontSize="12"
+                                   Margin="29,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SearchText}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </DockPanel>
+            </Border>
+
+            <Border DockPanel.Dock="Top" BorderBrush="{StaticResource BorderSubtle}" BorderThickness="0,0,0,1" Padding="18,10">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="PRESETS" Style="{StaticResource Label10}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <ItemsControl ItemsSource="{Binding Presets}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding Name}" Style="{StaticResource DefaultButton}" Margin="0,0,6,6"
+                                        Click="Preset_Click" Tag="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border DockPanel.Dock="Top" Background="{StaticResource ToneInfoBg}" BorderBrush="{StaticResource ToneInfoBorder}"
+                    BorderThickness="0,0,0,1" Padding="18,9" Visibility="{Binding ShowMythNote, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="{Binding MythNote}" FontSize="11" Foreground="{StaticResource ToneInfoFg}" TextWrapping="Wrap" />
+            </Border>
+
+            <ScrollViewer x:Name="ContentScroll" Style="{StaticResource ThemedScroll}" HorizontalScrollBarVisibility="Disabled"
+                          Padding="10,6,10,10" ScrollChanged="ContentScroll_ScrollChanged">
+                <ItemsControl x:Name="GroupsHost" ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="8,10,8,4">
+                                <TextBlock Text="{Binding Name, Converter={StaticResource Upper}}" Style="{StaticResource SectionHeader}"
+                                           Margin="4,0,0,10" />
+                                <Border Background="{StaticResource BgCard}" BorderBrush="{StaticResource BorderCard}" BorderThickness="1" CornerRadius="4">
+                                    <ItemsControl ItemsSource="{Binding Tweaks}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="{StaticResource RowDivider}" BorderThickness="0,0,0,1" Padding="14,11">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsApplied}" Value="True">
+                                                                    <Setter Property="Background" Value="{StaticResource RowApplied}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <CheckBox Grid.Column="0" Style="{StaticResource PillToggle}" VerticalAlignment="Center" Margin="0,0,14,0"
+                                                                  IsChecked="{Binding IsSwitchOn, Mode=OneWay}" Command="{Binding ToggleCommand}"
+                                                                  IsEnabled="{Binding CanToggle}"
+                                                                  Visibility="{Binding ShowSwitch, Converter={StaticResource BoolToVis}}" />
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding Name}" FontSize="13" VerticalAlignment="Center">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Foreground" Value="{StaticResource TextName}" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsApplied}" Value="True">
+                                                                                    <Setter Property="Foreground" Value="{StaticResource TextActive}" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                                <Border CornerRadius="2" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center" BorderThickness="1"
+                                                                        Background="{Binding Risk, Converter={StaticResource RiskBadge}, ConverterParameter=bg}"
+                                                                        BorderBrush="{Binding Risk, Converter={StaticResource RiskBadge}, ConverterParameter=border}">
+                                                                    <TextBlock Text="{Binding Risk, Converter={StaticResource Upper}}" FontSize="9"
+                                                                               Foreground="{Binding Risk, Converter={StaticResource RiskBadge}, ConverterParameter=fg}" />
+                                                                </Border>
+                                                                <Border CornerRadius="2" Padding="5,1" Margin="6,0,0,0" VerticalAlignment="Center" BorderThickness="1"
+                                                                        Background="{StaticResource BgCard}" BorderBrush="{StaticResource BorderInput}"
+                                                                        Visibility="{Binding RequiresRestart, Converter={StaticResource BoolToVis}}">
+                                                                    <TextBlock Text="restart" FontSize="9" Foreground="{StaticResource TextMuted}" />
+                                                                </Border>
+                                                            </StackPanel>
+                                                            <TextBlock Text="{Binding Description}" Foreground="{StaticResource TextBody}" FontSize="11"
+                                                                       TextWrapping="Wrap" Margin="0,3,12,0" />
+                                                            <ContentControl Content="{Binding Apps}" Focusable="False" IsTabStop="False"
+                                                                            Visibility="{Binding HasApps, Converter={StaticResource BoolToVis}}"
+                                                                            Margin="0,6,12,0">
+                                                                <ContentControl.ContentTemplate>
+                                                                    <DataTemplate>
+                                                                        <StackPanel>
+                                                                            <StackPanel Orientation="Horizontal">
+                                                                                <Button Command="{Binding ToggleExpandedCommand}">
+                                                                                    <Button.Style>
+                                                                                        <Style TargetType="Button" BasedOn="{StaticResource GhostButtonSm}">
+                                                                                            <Setter Property="Content" Value="Choose apps ▾" />
+                                                                                            <Style.Triggers>
+                                                                                                <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                                                                    <Setter Property="Content" Value="Hide apps ▴" />
+                                                                                                </DataTrigger>
+                                                                                            </Style.Triggers>
+                                                                                        </Style>
+                                                                                    </Button.Style>
+                                                                                </Button>
+                                                                                <TextBlock Text="{Binding Summary}" Foreground="{StaticResource TextDim}" FontSize="11"
+                                                                                           VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                                            </StackPanel>
+                                                                            <StackPanel Margin="0,8,0,0" Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}}">
+                                                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                                                    <Button Content="Recommended" Style="{StaticResource GhostButtonSm}"
+                                                                                            Command="{Binding SelectRecommendedCommand}" Margin="0,0,6,0" />
+                                                                                    <Button Content="All" Style="{StaticResource GhostButtonSm}"
+                                                                                            Command="{Binding SelectAllCommand}" Margin="0,0,6,0" />
+                                                                                    <Button Content="None" Style="{StaticResource GhostButtonSm}"
+                                                                                            Command="{Binding SelectNoneCommand}" />
+                                                                                </StackPanel>
+                                                                                <TextBlock Text="{Binding LoadError}" Foreground="{StaticResource DangerText}" FontSize="11"
+                                                                                           TextWrapping="Wrap" Margin="0,0,0,6"
+                                                                                           Visibility="{Binding HasLoadError, Converter={StaticResource BoolToVis}}" />
+                                                                                <ItemsControl ItemsSource="{Binding Rows}">
+                                                                                    <ItemsControl.ItemsPanel>
+                                                                                        <ItemsPanelTemplate>
+                                                                                            <UniformGrid Columns="2" />
+                                                                                        </ItemsPanelTemplate>
+                                                                                    </ItemsControl.ItemsPanel>
+                                                                                    <ItemsControl.ItemTemplate>
+                                                                                        <DataTemplate>
+                                                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Top" Margin="0,3,10,3">
+                                                                                                <StackPanel.Style>
+                                                                                                    <Style TargetType="StackPanel">
+                                                                                                        <Style.Triggers>
+                                                                                                            <DataTrigger Binding="{Binding IsInstalled}" Value="False">
+                                                                                                                <Setter Property="Opacity" Value="0.45" />
+                                                                                                            </DataTrigger>
+                                                                                                        </Style.Triggers>
+                                                                                                    </Style>
+                                                                                                </StackPanel.Style>
+                                                                                                <CheckBox Style="{StaticResource PillToggle}" VerticalAlignment="Top" Margin="0,1,8,0"
+                                                                                                          IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}" />
+                                                                                                <StackPanel>
+                                                                                                    <StackPanel Orientation="Horizontal">
+                                                                                                        <TextBlock Text="{Binding Name}" FontSize="12"
+                                                                                                                   Foreground="{StaticResource TextName}" VerticalAlignment="Center" />
+                                                                                                        <controls:Badge Text="{Binding Impact, Converter={StaticResource Upper}}"
+                                                                                                                        Tone="{Binding Impact, Converter={StaticResource ImpactTone}}"
+                                                                                                                        ToolTip="How much this app is worth removing"
+                                                                                                                        Margin="6,0,0,0" VerticalAlignment="Center" />
+                                                                                                        <TextBlock Text="not installed" Foreground="{StaticResource TextFaint}" FontSize="10"
+                                                                                                                   Margin="6,0,0,0" VerticalAlignment="Center"
+                                                                                                                   Visibility="{Binding IsInstalled, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                                                                                                    </StackPanel>
+                                                                                                    <TextBlock Text="{Binding Note}" Foreground="{StaticResource TextDim}" FontSize="10"
+                                                                                                               TextWrapping="Wrap"
+                                                                                                               Visibility="{Binding HasNote, Converter={StaticResource BoolToVis}}" />
+                                                                                                </StackPanel>
+                                                                                            </StackPanel>
+                                                                                        </DataTemplate>
+                                                                                    </ItemsControl.ItemTemplate>
+                                                                                </ItemsControl>
+                                                                            </StackPanel>
+                                                                        </StackPanel>
+                                                                    </DataTemplate>
+                                                                </ContentControl.ContentTemplate>
+                                                            </ContentControl>
+                                                            <ContentControl Content="{Binding Value}" Focusable="False" IsTabStop="False"
+                                                                            Visibility="{Binding IsValue, Converter={StaticResource BoolToVis}}">
+                                                                <ContentControl.ContentTemplate>
+                                                                    <DataTemplate>
+                                                                        <StackPanel>
+                                                                            <Grid Margin="0,8,12,0" Visibility="{Binding IsSlider, Converter={StaticResource BoolToVis}}">
+                                                                                <Grid.ColumnDefinitions>
+                                                                                    <ColumnDefinition Width="4*" MaxWidth="480" />
+                                                                                    <ColumnDefinition Width="*" />
+                                                                                </Grid.ColumnDefinitions>
+                                                                                <StackPanel>
+                                                                                    <Slider Style="{StaticResource DarkSlider}" Minimum="{Binding Min}" Maximum="{Binding Max}"
+                                                                                            SmallChange="{Binding Step}" LargeChange="{Binding Step}" TickFrequency="{Binding Step}"
+                                                                                            IsSnapToTickEnabled="True" Value="{Binding Number}" IsEnabled="{Binding IsAvailable}" />
+                                                                                    <DockPanel>
+                                                                                        <TextBlock DockPanel.Dock="Right" Text="{Binding MaxText}" FontFamily="{StaticResource MonoFont}" FontSize="10"
+                                                                                                   Foreground="{StaticResource TextFaint}" />
+                                                                                        <TextBlock Text="{Binding MinText}" FontFamily="{StaticResource MonoFont}" FontSize="10"
+                                                                                                   Foreground="{StaticResource TextFaint}" />
+                                                                                    </DockPanel>
+                                                                                </StackPanel>
+                                                                            </Grid>
+                                                                            <TextBlock Text="{Binding StatusLine}" FontSize="10" Foreground="{StaticResource TextDim}" TextWrapping="Wrap"
+                                                                                       Margin="0,4,12,0" />
+                                                                        </StackPanel>
+                                                                    </DataTemplate>
+                                                                </ContentControl.ContentTemplate>
+                                                            </ContentControl>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding StatusText}" Style="{StaticResource RowStatusText}" Margin="12,0,0,0" />
+                                                            <ContentControl Content="{Binding Value}" Focusable="False" IsTabStop="False" VerticalAlignment="Center"
+                                                                            Visibility="{Binding IsValue, Converter={StaticResource BoolToVis}}">
+                                                                <ContentControl.ContentTemplate>
+                                                                    <DataTemplate>
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <ComboBox Style="{StaticResource DarkCombo}" MinWidth="200" Margin="12,0,0,0" VerticalAlignment="Center"
+                                                                                      ItemsSource="{Binding Options}" SelectedItem="{Binding SelectedOption}" DisplayMemberPath="Label"
+                                                                                      IsEnabled="{Binding IsAvailable}" PreviewMouseWheel="ValueCombo_PreviewMouseWheel"
+                                                                                      Visibility="{Binding IsChoice, Converter={StaticResource BoolToVis}}" />
+                                                                            <TextBox Style="{StaticResource MonoInputBox}" Width="70" TextAlignment="Right" Margin="12,0,0,0" VerticalAlignment="Center"
+                                                                                     Text="{Binding NumberText}" PreviewKeyDown="NumberBox_KeyDown"
+                                                                                     IsEnabled="{Binding IsAvailable}"
+                                                                                     Visibility="{Binding IsSlider, Converter={StaticResource BoolToVis}}" />
+                                                                            <Button Content="Apply" Style="{StaticResource AccentButtonSm}" Command="{Binding ApplyCommand}" Margin="8,0,0,0"
+                                                                                    Visibility="{Binding ShowApplyButton, Converter={StaticResource BoolToVis}}" />
+                                                                            <Button Content="Reset" Style="{StaticResource GhostButtonSm}" Command="{Binding ResetCommand}" Margin="8,0,0,0"
+                                                                                    ToolTip="Put back the value from before Tweaker changed it"
+                                                                                    Visibility="{Binding CanReset, Converter={StaticResource BoolToVis}}" />
+                                                                        </StackPanel>
+                                                                    </DataTemplate>
+                                                                </ContentControl.ContentTemplate>
+                                                            </ContentControl>
+                                                            <Button Content="Run" Style="{StaticResource AccentButtonSm}" Command="{Binding RunCommand}"
+                                                                    IsEnabled="{Binding CanRun}" Margin="10,0,0,0"
+                                                                    Visibility="{Binding IsRunOnce, Converter={StaticResource BoolToVis}}" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </DockPanel>
+    </Grid>
+</UserControl>

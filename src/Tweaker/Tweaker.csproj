@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Tweaker</RootNamespace>
+    <AssemblyName>tweaker</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+    <Configurations>Debug;Release</Configurations>
+    <Version>1.0.0</Version>
+    <Product>Tweaker</Product>
+    <AssemblyTitle>Tweaker</AssemblyTitle>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Tweaker.Core\Tweaker.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
+    <PackageReference Include="NvAPIWrapper.Net" Version="0.8.1.101" />
+    <PackageReference Include="System.Management" Version="10.0.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="icon.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\Fonts\Inter-Regular.ttf" />
+    <Resource Include="Resources\Fonts\Inter-Medium.ttf" />
+    <Resource Include="Resources\Fonts\Inter-SemiBold.ttf" />
+    <Resource Include="Resources\Fonts\JetBrainsMono-Regular.ttf" />
+    <Resource Include="Resources\Fonts\JetBrainsMono-Medium.ttf" />
+    <Resource Include="Resources\AppIcons\*.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\catalog.json" Link="catalog.json" LogicalName="Tweaker.catalog.json" />
+  </ItemGroup>
+</Project>
