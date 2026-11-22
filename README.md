@@ -32,11 +32,3 @@ dotnet run --project src/Tweaker
 # build the single-file exe into publish\tweaker.exe
 powershell -ExecutionPolicy Bypass -File build.ps1
 ```
-
-## Credits
-
-Some tweaks adapted from [ChrisTitusTech/winutil](https://github.com/ChrisTitusTech/winutil) (MIT).
-Uses [NvAPIWrapper.Net](https://github.com/falahati/NvAPIWrapper) (LGPL-3.0),
-[LibreHardwareMonitorLib](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) (MPL-2.0),
-[Simple Icons](https://simpleicons.org) and the Inter / JetBrains Mono fonts (OFL). App logos belong to their
-owners and only identify each program. Notices in `third_party/`.
