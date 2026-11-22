@@ -8,7 +8,7 @@ monitoring and hardware tuning in one window, with a backup of everything it cha
 ## How it works
 
 1. Pick a tab at the top (Tweaks, NVIDIA, Config, Install, Resources, Hardware, Inspector, Updates), then a
-   category in the row under it.
+   category in the side panel on the left.
 2. Flip switches. Changes queue in the bar at the bottom: nothing happens until you press **Apply**.
    **Revert** throws the queue away.
 3. Every change saves the old value first, so switching it back off restores it.
